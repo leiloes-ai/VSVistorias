@@ -16,7 +16,8 @@ const StatCard: React.FC<{ title: string; value: string; color?: string; }> = ({
 );
 
 const FinancialReports: React.FC = () => {
-    const { financials, settings, accounts, thirdParties, theme, logo } = useContext(AppContext);
+    // FIX: Destructure 'users' from AppContext to define 'inspectors'.
+    const { financials, settings, accounts, thirdParties, theme, logo, users, loading } = useContext(AppContext);
 
     const [filters, setFilters] = useState({
         startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
@@ -33,6 +34,9 @@ const FinancialReports: React.FC = () => {
         cashFlow: { month: string; Receita: number; Despesa: number }[];
         expenseByCategory: { name: string; value: number }[];
     } | null>(null);
+
+    // FIX: Define 'inspectors' by filtering users.
+    const inspectors = useMemo(() => users.filter(u => u.roles.includes('inspector') || u.roles.includes('admin') || u.roles.includes('master')), [users]);
 
     const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
@@ -65,7 +69,7 @@ const FinancialReports: React.FC = () => {
         const expense = result.filter(t => t.type === 'Despesa').reduce((sum, t) => sum + t.amount, 0);
         
         // FIX: Explicitly type the accumulator in the reduce function to prevent TypeScript from inferring it as 'unknown'.
-        const cashFlowData = result.reduce<Record<string, { month: string; Receita: number; Despesa: number }>>((acc, t) => {
+        const cashFlowData = result.reduce((acc: Record<string, { month: string; Receita: number; Despesa: number }>, t) => {
             const month = new Date(t.date + 'T00:00:00').toLocaleDateString('pt-BR', { year: '2-digit', month: 'short' });
             if (!acc[month]) {
                 acc[month] = { month, Receita: 0, Despesa: 0 };
@@ -73,16 +77,16 @@ const FinancialReports: React.FC = () => {
             if (t.type === 'Receita') acc[month].Receita += t.amount;
             else acc[month].Despesa += t.amount;
             return acc;
-        }, {});
+        }, {} as Record<string, { month: string; Receita: number; Despesa: number }>);
         
         // FIX: Explicitly type the accumulator in the reduce function to prevent TypeScript from inferring it as 'unknown'.
-        const expenseByCategoryData = result.filter(t => t.type === 'Despesa').reduce<Record<string, { name: string; value: number }>>((acc, t) => {
+        const expenseByCategoryData = result.filter(t => t.type === 'Despesa').reduce((acc: Record<string, { name: string; value: number }>, t) => {
             if (!acc[t.category]) {
                 acc[t.category] = { name: t.category, value: 0 };
             }
             acc[t.category].value += t.amount;
             return acc;
-        }, {});
+        }, {} as Record<string, { name: string; value: number }>);
 
         setReportData({
             transactions: result,
@@ -178,27 +182,36 @@ const FinancialReports: React.FC = () => {
         doc.save(`Relatorio_Financeiro_${new Date().toISOString().split('T')[0]}.pdf`);
     };
 
+    const getInspectorName = (inspectorId: string) => inspectors.find(u => u.id === inspectorId)?.name || 'N/A';
+
     const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#f43f5e', '#64748b', '#06b6d4', '#ec4899'];
 
     return (
-        <div className="space-y-6">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+        <div>
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Relatórios Financeiros</h1>
+            <p className="mt-1 text-gray-600 dark:text-gray-400">Gere relatórios customizados com base nas transações.</p>
+            
+            <div className="mt-6 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
                 <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Filtros do Relatório</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <input type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange} className="input-style" />
                     <input type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} className="input-style" />
-                    <input type="text" name="licensePlate" placeholder="Placa do Veículo" value={filters.licensePlate} onChange={handleFilterChange} className="input-style" />
-                    <select name="requester" value={filters.requester} onChange={handleFilterChange} className="input-style">
-                        <option value="">Todos Solicitantes</option>
-                        {settings.requesters.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+                    <select name="type" value={filters.type} onChange={handleFilterChange} className="input-style">
+                        <option value="Todos">Todos os Tipos</option>
+                        <option value="Receita">Receita</option>
+                        <option value="Despesa">Despesa</option>
                     </select>
-                    <select name="inspectorId" value={filters.inspectorId} onChange={handleFilterChange} className="input-style">
-                        <option value="">Todos Vistoriadores</option>
-                        {inspectors.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                    <select name="categoryId" value={filters.categoryId} onChange={handleFilterChange} className="input-style">
+                        <option value="">Todas as Categorias</option>
+                        {settings.financialCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
-                    <select name="status" value={filters.status} onChange={handleFilterChange} className="input-style">
-                        <option value="">Todos os Status</option>
-                        {settings.statuses.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                    <select name="accountId" value={filters.accountId} onChange={handleFilterChange} className="input-style">
+                        <option value="">Todas as Contas</option>
+                        {accounts.map(a => <option key={a.stringId} value={a.stringId}>{a.name}</option>)}
+                    </select>
+                    <select name="thirdPartyId" value={filters.thirdPartyId} onChange={handleFilterChange} className="input-style">
+                        <option value="">Todos Clientes/Fornecedores</option>
+                        {thirdParties.map(tp => <option key={tp.stringId} value={tp.stringId}>{tp.name}</option>)}
                     </select>
                 </div>
                 <div className="mt-4 flex gap-3">
@@ -246,7 +259,7 @@ const FinancialReports: React.FC = () => {
                              <h3 className="font-semibold text-gray-800 dark:text-white mb-2 text-center">Despesas por Categoria</h3>
                              <ResponsiveContainer width="100%" height="100%"><PieChart>
                                 <Pie data={reportData.expenseByCategory} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} labelLine={false} label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => { const radius = innerRadius + (outerRadius - innerRadius) * 1.3; const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180)); const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180)); return (<text x={x} y={y} fill={theme === 'dark' ? '#a0aec0' : '#4a5568'} textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={12}>{`${(percent * 100).toFixed(0)}%`}</text>);}}>
-                                    {reportData.expenseByCategory.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                                    {reportData.expenseByCategory.map((entry: any, index: number) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                                 </Pie>
                                 {/* FIX: Explicitly type the 'value' parameter as 'any' to resolve a TypeScript error with recharts types. */}
                                 <Tooltip formatter={(value: any) => (typeof value === 'number' ? formatCurrency(value) : String(value))} contentStyle={{backgroundColor: theme === 'dark' ? '#2d3748' : '#fff', border: '1px solid #4a5568'}}/>

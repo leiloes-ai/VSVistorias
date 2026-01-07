@@ -118,20 +118,20 @@ const FinancialDashboard: React.FC = () => {
         const totalPayable = financials.filter(t => t.isPayableOrReceivable && t.type === 'Despesa' && t.status !== 'Paga').reduce((sum, t) => sum + t.amount, 0);
         
         // FIX: Explicitly type the accumulator in the reduce function to prevent TypeScript from inferring it as 'unknown'.
-        const cashFlowData = transactionsInPeriod.reduce<Record<string, { month: string; Receita: number; Despesa: number }>>((acc, t) => {
+        const cashFlowData = transactionsInPeriod.reduce((acc: Record<string, { month: string; Receita: number; Despesa: number }>, t) => {
             const month = new Date((t.paymentDate || t.date) + 'T00:00:00').toLocaleDateString('pt-BR', { year: '2-digit', month: 'short' });
             if (!acc[month]) acc[month] = { month, Receita: 0, Despesa: 0 };
             if (t.type === 'Receita') acc[month].Receita += t.amount;
             else acc[month].Despesa += t.amount;
             return acc;
-        }, {});
+        }, {} as Record<string, { month: string; Receita: number; Despesa: number }>);
 
         // FIX: Explicitly type the accumulator in the reduce function to prevent TypeScript from inferring it as 'unknown'.
-        const expenseData = transactionsInPeriod.filter(t => t.type === 'Despesa').reduce<Record<string, { name: string; value: number }>>((acc, t) => {
+        const expenseData = transactionsInPeriod.filter(t => t.type === 'Despesa').reduce((acc: Record<string, { name: string; value: number }>, t) => {
             if (!acc[t.category]) acc[t.category] = { name: t.category, value: 0 };
             acc[t.category].value += t.amount;
             return acc;
-        }, {});
+        }, {} as Record<string, { name: string; value: number }>);
         
         const today = new Date(); today.setHours(0,0,0,0);
         const next7days = new Date(); next7days.setDate(today.getDate() + 7);
@@ -146,12 +146,12 @@ const FinancialDashboard: React.FC = () => {
             .reduce((balance, t) => t.type === 'Receita' ? balance + t.amount : balance - t.amount, totalInitialAccountBalance);
 
         // FIX: Explicitly type the accumulator in the reduce function to prevent TypeScript from inferring it as 'unknown'.
-        const dailyChanges = transactionsInPeriod.reduce<Record<string, number>>((acc, t) => {
+        const dailyChanges = transactionsInPeriod.reduce((acc: Record<string, number>, t) => {
             const dateStr = (t.paymentDate || t.date);
             const change = t.type === 'Receita' ? t.amount : -t.amount;
             acc[dateStr] = (acc[dateStr] || 0) + change;
             return acc;
-        }, {});
+        }, {} as Record<string, number>);
 
         const balanceEvolutionData = [];
         let currentBalance = balanceAtStartOfPeriod;
@@ -297,7 +297,7 @@ const FinancialDashboard: React.FC = () => {
                         <h3 className="font-semibold text-gray-800 dark:text-white mb-2 text-center">Composição de Despesas</h3>
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart><AnyPie data={dashboardData.expenses} cx="50%" cy="50%" innerRadius="55%" outerRadius="80%" fill="#8884d8" paddingAngle={5} dataKey="value" activeIndex={activeIndex} activeShape={(props: any) => renderActiveShape({...props, theme: theme})} onMouseEnter={onPieEnter}>
-                                {dashboardData.expenses.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                                {dashboardData.expenses.map((entry: any, index: number) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                             </AnyPie>
                             <Tooltip formatter={(value: any) => (typeof value === 'number' ? formatCurrency(value) : String(value))} contentStyle={{backgroundColor: theme === 'dark' ? '#2d3748' : '#fff', border: '1px solid #4a5568'}}/>
 </PieChart>

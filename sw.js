@@ -1,6 +1,6 @@
 // Service Worker Version: Incrementar esta versão acionará o evento 'install'
 // e atualizará o cache, garantindo que os usuários recebam a versão mais recente do aplicativo.
-const VERSION = 'v1.10.0';
+const VERSION = 'v1.11.0';
 
 // Cache Name: Um nome exclusivo para o armazenamento de cache do aplicativo. Usar a versão
 // garante que novos service workers usem um novo cache, evitando conflitos.
@@ -60,6 +60,7 @@ self.addEventListener('install', (event) => {
       return cache.addAll(APP_SHELL_URLS);
     })
   );
+  self.skipWaiting();
 });
 
 // Evento ACTIVATE
