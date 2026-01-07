@@ -1,3 +1,4 @@
+
 import React, { useState, useContext, useMemo } from 'react';
 import { AppContext } from '../../contexts/AppContext.tsx';
 import { FinancialTransaction } from '../../types.ts';
@@ -63,7 +64,8 @@ const FinancialReports: React.FC = () => {
         const revenue = result.filter(t => t.type === 'Receita').reduce((sum, t) => sum + t.amount, 0);
         const expense = result.filter(t => t.type === 'Despesa').reduce((sum, t) => sum + t.amount, 0);
         
-        const cashFlowData = result.reduce((acc, t) => {
+        // FIX: Explicitly type the accumulator in the reduce function to prevent TypeScript from inferring it as 'unknown'.
+        const cashFlowData = result.reduce<Record<string, { month: string; Receita: number; Despesa: number }>>((acc, t) => {
             const month = new Date(t.date + 'T00:00:00').toLocaleDateString('pt-BR', { year: '2-digit', month: 'short' });
             if (!acc[month]) {
                 acc[month] = { month, Receita: 0, Despesa: 0 };
@@ -71,15 +73,16 @@ const FinancialReports: React.FC = () => {
             if (t.type === 'Receita') acc[month].Receita += t.amount;
             else acc[month].Despesa += t.amount;
             return acc;
-        }, {} as Record<string, { month: string; Receita: number; Despesa: number }>);
+        }, {});
         
-        const expenseByCategoryData = result.filter(t => t.type === 'Despesa').reduce((acc, t) => {
+        // FIX: Explicitly type the accumulator in the reduce function to prevent TypeScript from inferring it as 'unknown'.
+        const expenseByCategoryData = result.filter(t => t.type === 'Despesa').reduce<Record<string, { name: string; value: number }>>((acc, t) => {
             if (!acc[t.category]) {
                 acc[t.category] = { name: t.category, value: 0 };
             }
             acc[t.category].value += t.amount;
             return acc;
-        }, {} as Record<string, { name: string; value: number }>);
+        }, {});
 
         setReportData({
             transactions: result,
@@ -184,14 +187,27 @@ const FinancialReports: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <input type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange} className="input-style" />
                     <input type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} className="input-style" />
-                    <select name="type" value={filters.type} onChange={handleFilterChange} className="input-style"><option value="Todos">Todos os Tipos</option><option value="Receita">Receita</option><option value="Despesa">Despesa</option></select>
-                    <select name="categoryId" value={filters.categoryId} onChange={handleFilterChange} className="input-style"><option value="">Todas Categorias</option>{settings.financialCategories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
-                    <select name="accountId" value={filters.accountId} onChange={handleFilterChange} className="input-style"><option value="">Todas as Contas</option>{accounts.map(a=><option key={a.stringId} value={a.stringId!}>{a.name}</option>)}</select>
-                    <select name="thirdPartyId" value={filters.thirdPartyId} onChange={handleFilterChange} className="input-style"><option value="">Todos Clientes/Fornecedores</option>{thirdParties.map(tp=><option key={tp.stringId} value={tp.stringId!}>{tp.name}</option>)}</select>
+                    <input type="text" name="licensePlate" placeholder="Placa do Veículo" value={filters.licensePlate} onChange={handleFilterChange} className="input-style" />
+                    <select name="requester" value={filters.requester} onChange={handleFilterChange} className="input-style">
+                        <option value="">Todos Solicitantes</option>
+                        {settings.requesters.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+                    </select>
+                    <select name="inspectorId" value={filters.inspectorId} onChange={handleFilterChange} className="input-style">
+                        <option value="">Todos Vistoriadores</option>
+                        {inspectors.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                    </select>
+                    <select name="status" value={filters.status} onChange={handleFilterChange} className="input-style">
+                        <option value="">Todos os Status</option>
+                        {settings.statuses.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                    </select>
                 </div>
-                <div className="mt-5 flex gap-3">
-                    <button onClick={handleGenerateReport} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg shadow hover:bg-primary-700 font-semibold"><SearchIcon /> Gerar Relatório</button>
-                    <button onClick={clearFilters} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 font-semibold">Limpar</button>
+                <div className="mt-4 flex gap-3">
+                    <button onClick={handleGenerateReport} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg shadow hover:bg-primary-700 font-semibold">
+                        <SearchIcon /> Gerar Relatório
+                    </button>
+                    <button onClick={clearFilters} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 font-semibold">
+                        Limpar Filtros
+                    </button>
                 </div>
             </div>
 

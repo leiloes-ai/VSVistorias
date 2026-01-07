@@ -3,9 +3,13 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebas
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 
-// Your web app's Firebase configuration
+// SEGURANÇA: No Firebase, a apiKey é pública por design (identificador do projeto).
+// Para protegê-la de uso indevido em outros domínios:
+// 1. Vá em Console do Google Cloud > APIs e Serviços > Credenciais.
+// 2. Edite a chave de API usada aqui.
+// 3. Adicione "Restrições de site" e coloque o seu domínio (ex: appvsvistorias1.vercel.app).
 const firebaseConfig = {
-  apiKey: "AIzaSyDwhB3e0cQiIYIcjQRqN2hCFviv5iVPNO4", // Restored key to fix login. Secure this in Google Cloud Console.
+  apiKey: "AIzaSyDwhB3e0cQiIYIcjQRqN2hCFviv5iVPNO4",
   authDomain: "appvsvistorias1.firebaseapp.com",
   projectId: "appvsvistorias1",
   storageBucket: "appvsvistorias1.firebasestorage.app",

@@ -1,3 +1,4 @@
+
 import React, { useState, useContext, useMemo, useCallback } from 'react';
 import { AppContext } from '../../contexts/AppContext.tsx';
 import { FinancialTransaction } from '../../types.ts';
@@ -116,19 +117,21 @@ const FinancialDashboard: React.FC = () => {
         const totalReceivable = financials.filter(t => t.isPayableOrReceivable && t.type === 'Receita' && t.status !== 'Paga').reduce((sum, t) => sum + t.amount, 0);
         const totalPayable = financials.filter(t => t.isPayableOrReceivable && t.type === 'Despesa' && t.status !== 'Paga').reduce((sum, t) => sum + t.amount, 0);
         
-        const cashFlowData = transactionsInPeriod.reduce((acc, t) => {
+        // FIX: Explicitly type the accumulator in the reduce function to prevent TypeScript from inferring it as 'unknown'.
+        const cashFlowData = transactionsInPeriod.reduce<Record<string, { month: string; Receita: number; Despesa: number }>>((acc, t) => {
             const month = new Date((t.paymentDate || t.date) + 'T00:00:00').toLocaleDateString('pt-BR', { year: '2-digit', month: 'short' });
             if (!acc[month]) acc[month] = { month, Receita: 0, Despesa: 0 };
             if (t.type === 'Receita') acc[month].Receita += t.amount;
             else acc[month].Despesa += t.amount;
             return acc;
-        }, {} as Record<string, { month: string; Receita: number; Despesa: number }>);
+        }, {});
 
-        const expenseData = transactionsInPeriod.filter(t => t.type === 'Despesa').reduce((acc, t) => {
+        // FIX: Explicitly type the accumulator in the reduce function to prevent TypeScript from inferring it as 'unknown'.
+        const expenseData = transactionsInPeriod.filter(t => t.type === 'Despesa').reduce<Record<string, { name: string; value: number }>>((acc, t) => {
             if (!acc[t.category]) acc[t.category] = { name: t.category, value: 0 };
             acc[t.category].value += t.amount;
             return acc;
-        }, {} as Record<string, { name: string; value: number }>);
+        }, {});
         
         const today = new Date(); today.setHours(0,0,0,0);
         const next7days = new Date(); next7days.setDate(today.getDate() + 7);
@@ -142,12 +145,13 @@ const FinancialDashboard: React.FC = () => {
             .filter(t => new Date(t.paymentDate || t.date) < startDate)
             .reduce((balance, t) => t.type === 'Receita' ? balance + t.amount : balance - t.amount, totalInitialAccountBalance);
 
-        const dailyChanges = transactionsInPeriod.reduce((acc, t) => {
+        // FIX: Explicitly type the accumulator in the reduce function to prevent TypeScript from inferring it as 'unknown'.
+        const dailyChanges = transactionsInPeriod.reduce<Record<string, number>>((acc, t) => {
             const dateStr = (t.paymentDate || t.date);
             const change = t.type === 'Receita' ? t.amount : -t.amount;
             acc[dateStr] = (acc[dateStr] || 0) + change;
             return acc;
-        }, {} as Record<string, number>);
+        }, {});
 
         const balanceEvolutionData = [];
         let currentBalance = balanceAtStartOfPeriod;

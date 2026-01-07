@@ -9,7 +9,6 @@ import DebugTerminal from '../components/DebugTerminal.tsx';
 type Tab = 'general' | 'layout' | 'appearance' | 'notifications' | 'application';
 type SettingKey = 'requesters' | 'demands' | 'inspectionTypes' | 'patios' | 'statuses';
 
-// Map for translating setting keys to Portuguese labels
 const categoryLabels: Record<SettingKey, string> = {
     requesters: 'Solicitantes',
     demands: 'Demandas',
@@ -49,7 +48,6 @@ const ToggleSwitch: React.FC<{ label: string; enabled: boolean; onChange: (enabl
     </label>
 );
 
-
 const Settings: React.FC = () => {
     const { 
         settings, updateSettings, appointments, user, logo, updateLogo,
@@ -58,17 +56,14 @@ const Settings: React.FC = () => {
     } = useContext(AppContext);
     
     const isAdminOrMaster = user?.roles.includes('master') || user?.roles.includes('admin');
-
-    // Page state
     const [activeTab, setActiveTab] = useState<Tab>(isAdminOrMaster ? 'general' : 'appearance');
     const [localSettings, setLocalSettings] = useState<SettingsType>(settings);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+    const [showManualInstructions, setShowManualInstructions] = useState(false);
 
-    // Modal and Form state
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-    const [isInstallInstructionsOpen, setIsInstallInstructionsOpen] = useState(false);
     const [currentKey, setCurrentKey] = useState<SettingKey | null>(null);
     const [currentItem, setCurrentItem] = useState<SettingCategory | null>(null);
     const [itemName, setItemName] = useState('');
@@ -93,12 +88,11 @@ const Settings: React.FC = () => {
         { id: 'layout', label: 'Identidade Visual', condition: isAdminOrMaster },
         { id: 'appearance', label: 'Aparência', condition: true },
         { id: 'notifications', label: 'Notificações', condition: true },
-        { id: 'application', label: 'Aplicativo', condition: true },
+        { id: 'application', label: 'Aplicativo / Mobile', condition: true },
     ];
     const visibleTabs = allTabs.filter(tab => tab.condition);
 
     const handleSave = () => {
-        // FIX: Appearance settings are managed directly by context functions and are not part of the settings object to be saved. This ensures only valid settings are passed to updateSettings.
         const { id, ...settingsToSave } = localSettings;
         updateSettings(settingsToSave); 
         alert('Configurações salvas com sucesso!'); 
@@ -110,29 +104,22 @@ const Settings: React.FC = () => {
     const handleSaveItem = (e: React.FormEvent) => {
         e.preventDefault();
         if (!currentKey || !itemName.trim()) return;
-
         let updatedList: SettingCategory[];
-        if (currentItem) { // Editing existing item
-            updatedList = (localSettings[currentKey] as SettingCategory[]).map(item =>
-                item.id === currentItem.id ? { ...item, name: itemName.trim() } : item
-            );
-        } else { // Adding new item
-            const newItem: SettingCategory = {
-                id: new Date().getTime().toString(), // Simple unique ID
-                name: itemName.trim()
-            };
+        if (currentItem) {
+            updatedList = (localSettings[currentKey] as SettingCategory[]).map(item => item.id === currentItem.id ? { ...item, name: itemName.trim() } : item);
+        } else {
+            const newItem: SettingCategory = { id: new Date().getTime().toString(), name: itemName.trim() };
             updatedList = [...localSettings[currentKey], newItem];
         }
-
         setLocalSettings(prev => ({ ...prev, [currentKey]: updatedList }));
         closeModal();
     };
+
     const openDeleteDialog = (key: SettingKey, item: SettingCategory) => { setItemToDelete({ key, item }); setIsConfirmOpen(true); };
     const closeDeleteDialog = () => { setIsConfirmOpen(false); setItemToDelete(null); };
     const confirmDelete = () => {
         if (!itemToDelete) return;
         const { key, item } = itemToDelete;
-
         const isInUse = appointments.some(app => {
             if (key === 'requesters') return app.requester === item.name;
             if (key === 'demands') return app.demand === item.name;
@@ -141,41 +128,30 @@ const Settings: React.FC = () => {
             if (key === 'statuses') return app.status === item.name;
             return false;
         });
-
         if (isInUse) {
             alert(`Não é possível remover "${item.name}" pois está sendo utilizado em um ou mais agendamentos.`);
             closeDeleteDialog();
             return;
         }
-
         const updatedList = (localSettings[key] as SettingCategory[]).filter(i => i.id !== item.id);
         setLocalSettings(prev => ({ ...prev, [key]: updatedList }));
         closeDeleteDialog();
     };
+
     const handleMoveItem = (key: SettingKey, index: number, direction: 'up' | 'down') => {
         const list = [...(localSettings[key] as SettingCategory[])];
         const newIndex = direction === 'up' ? index - 1 : index + 1;
-
         if (newIndex < 0 || newIndex >= list.length) return;
-
-        [list[index], list[newIndex]] = [list[newIndex], list[index]]; // Swap elements
-
+        [list[index], list[newIndex]] = [list[newIndex], list[index]];
         setLocalSettings(prev => ({ ...prev, [key]: list }));
     };
     
     const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
-            if (file.size > 2 * 1024 * 1024) {
-                alert("O arquivo é muito grande. O tamanho máximo é 2MB.");
-                return;
-            }
+            if (file.size > 2 * 1024 * 1024) { alert("O arquivo é muito grande. O tamanho máximo é 2MB."); return; }
             const reader = new FileReader();
-            reader.onloadend = () => {
-                if (reader.result) {
-                    updateLogo(reader.result as string);
-                }
-            };
+            reader.onloadend = () => { if (reader.result) updateLogo(reader.result as string); };
             reader.readAsDataURL(file);
         }
     };
@@ -184,8 +160,7 @@ const Settings: React.FC = () => {
         if (installPromptEvent) {
             triggerInstallPrompt();
         } else {
-            // If the prompt isn't available, show manual instructions
-            setIsInstallInstructionsOpen(true);
+            setShowManualInstructions(!showManualInstructions);
         }
     };
     
@@ -199,9 +174,6 @@ const Settings: React.FC = () => {
                             <AddIcon /> Adicionar
                         </button>
                     </div>
-                    <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                        {key === 'statuses' ? 'Gerencie a ordem e os nomes dos status dos agendamentos.' : `Gerencie as opções de ${categoryLabels[key].toLowerCase()}.`}
-                    </p>
                     <div className="mt-4 border rounded-lg overflow-hidden dark:border-gray-700">
                         <ul className="divide-y divide-gray-200 dark:divide-gray-700">
                             {localSettings[key] && (localSettings[key] as SettingCategory[]).map((item, index) => (
@@ -225,20 +197,12 @@ const Settings: React.FC = () => {
             ))}
         </div>
     );
+
     const renderLayoutSettings = () => (
         <div className="space-y-6">
             <div>
-                <label htmlFor="appName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Nome da Aplicação
-                </label>
-                <input
-                    type="text"
-                    id="appName"
-                    value={localSettings.appName}
-                    onChange={(e) => setLocalSettings(prev => ({ ...prev, appName: e.target.value }))}
-                    disabled={!canEdit}
-                    className="mt-1 block w-full max-w-md px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 disabled:opacity-50"
-                />
+                <label htmlFor="appName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome da Aplicação</label>
+                <input type="text" id="appName" value={localSettings.appName} onChange={(e) => setLocalSettings(prev => ({ ...prev, appName: e.target.value }))} disabled={!canEdit} className="mt-1 block w-full max-w-md px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 disabled:opacity-50" />
             </div>
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Logo da Aplicação</label>
@@ -247,168 +211,149 @@ const Settings: React.FC = () => {
                         {logo ? <img src={logo} alt="Logo" className="object-contain h-full w-full" /> : <span className="text-xs text-gray-500">Sem Logo</span>}
                     </div>
                     <div>
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleLogoUpload}
-                            accept="image/png, image/jpeg, image/svg+xml"
-                            className="hidden"
-                            disabled={!canEdit}
-                        />
-                        <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={!canEdit}
-                            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50"
-                        >
-                            Alterar Logo
-                        </button>
-                         <button
-                            type="button"
-                            onClick={() => updateLogo(null)}
-                            disabled={!canEdit || !logo}
-                            className="ml-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
-                        >
-                            Remover Logo
-                        </button>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">PNG, JPG ou SVG. Máximo de 2MB.</p>
+                        <input type="file" ref={fileInputRef} onChange={handleLogoUpload} accept="image/png, image/jpeg, image/svg+xml" className="hidden" disabled={!canEdit} />
+                        <button type="button" onClick={() => fileInputRef.current?.click()} disabled={!canEdit} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50">Alterar Logo</button>
+                        <button type="button" onClick={() => updateLogo(null)} disabled={!canEdit || !logo} className="ml-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50">Remover Logo</button>
                     </div>
                 </div>
             </div>
         </div>
     );
+
     const renderAppearanceSettings = () => (
         <div className="space-y-8">
             <div>
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Tema da Aplicação</h3>
-                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Escolha entre o modo claro ou escuro para sua visualização.</p>
                 <div className="mt-3 flex gap-4">
-                    <button onClick={() => setTheme('light')} disabled={!canUpdate} className={`px-4 py-2 rounded-lg disabled:opacity-50 ${theme === 'light' ? 'bg-primary-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>Claro</button>
-                    <button onClick={() => setTheme('dark')} disabled={!canUpdate} className={`px-4 py-2 rounded-lg disabled:opacity-50 ${theme === 'dark' ? 'bg-primary-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>Escuro</button>
+                    <button onClick={() => setTheme('light')} disabled={!canUpdate} className={`px-4 py-2 rounded-lg disabled:opacity-50 ${theme === 'light' ? 'bg-primary-500 text-white shadow-lg' : 'bg-gray-200 dark:bg-gray-700'}`}>Claro</button>
+                    <button onClick={() => setTheme('dark')} disabled={!canUpdate} className={`px-4 py-2 rounded-lg disabled:opacity-50 ${theme === 'dark' ? 'bg-primary-500 text-white shadow-lg' : 'bg-gray-200 dark:bg-gray-700'}`}>Escuro</button>
                 </div>
             </div>
              <div>
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Paleta de Cores Principal</h3>
-                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Altere a cor de destaque da sua interface.</p>
-                <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Cor de Destaque</h3>
+                <div className="mt-3 grid grid-cols-4 sm:grid-cols-8 gap-4">
                     {palettes.map(p => (
-                        <button key={p.id} onClick={() => setThemePalette(p.id)} disabled={!canUpdate} className={`p-3 rounded-lg border-2 disabled:opacity-50 ${themePalette === p.id ? 'border-primary-500' : 'border-transparent'}`}>
-                            <div className="flex gap-2 h-8">
-                                <span className="w-1/2 rounded" style={{ backgroundColor: p.colors[0] }}></span>
-                                <span className="w-1/2 rounded" style={{ backgroundColor: p.colors[1] }}></span>
-                            </div>
-                            <p className="text-sm mt-2 text-gray-700 dark:text-gray-300">{p.name}</p>
-                        </button>
+                        <button key={p.id} onClick={() => setThemePalette(p.id)} disabled={!canUpdate} className={`h-10 w-10 rounded-full border-2 transition-transform transform hover:scale-110 ${themePalette === p.id ? 'border-gray-900 dark:border-white scale-110 ring-2 ring-primary-400' : 'border-transparent'}`} style={{ backgroundColor: p.colors[0] }} title={p.name} />
                     ))}
-                </div>
-            </div>
-            <div>
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Paleta de Cores do Texto</h3>
-                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Ajuste o tom dos textos para melhor legibilidade.</p>
-                 <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-4">
-                     {textPalettes.map(p => (
-                         <button key={p.id} onClick={() => setTextPalette(p.id)} disabled={!canUpdate} className={`p-4 rounded-lg border-2 disabled:opacity-50 ${textPalette === p.id ? 'border-primary-500' : 'border-gray-200 dark:border-gray-700'}`}>
-                            <p className="font-semibold" style={{ color: p.color }}>{p.name}</p>
-                            <p className="text-sm" style={{ color: p.color }}>Exemplo de texto.</p>
-                         </button>
-                     ))}
                 </div>
             </div>
         </div>
     );
+
     const renderNotificationsSettings = () => (
         <div className="space-y-6">
             <div>
                  <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Alertas do App</h3>
-                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Habilite alertas sonoros ou vibração para novas atualizações enquanto o sistema está aberto.</p>
                  <div className="mt-4 space-y-3 max-w-md">
-                     <ToggleSwitch
-                        label="Habilitar alerta sonoro"
-                        enabled={localSettings.enableSoundAlert ?? false}
-                        onChange={(enabled) => setLocalSettings(p => ({ ...p, enableSoundAlert: enabled }))}
-                        disabled={!canUpdate}
-                     />
-                      <ToggleSwitch
-                        label="Habilitar vibração (em dispositivos móveis)"
-                        enabled={localSettings.enableVibrationAlert ?? false}
-                        onChange={(enabled) => setLocalSettings(p => ({ ...p, enableVibrationAlert: enabled }))}
-                        disabled={!canUpdate}
-                     />
+                     <ToggleSwitch label="Habilitar alerta sonoro" enabled={localSettings.enableSoundAlert ?? false} onChange={(enabled) => setLocalSettings(p => ({ ...p, enableSoundAlert: enabled }))} disabled={!canUpdate} />
+                      <ToggleSwitch label="Habilitar vibração" enabled={localSettings.enableVibrationAlert ?? false} onChange={(enabled) => setLocalSettings(p => ({ ...p, enableVibrationAlert: enabled }))} disabled={!canUpdate} />
                  </div>
             </div>
-
             {isAdminOrMaster && (
                 <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Ferramentas de Desenvolvedor</h3>
-                    <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Acesse o console para depurar a aplicação em tempo real.</p>
-                    <div className="mt-4">
-                        <button onClick={() => setIsTerminalOpen(true)} className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800">Abrir Console de Debug</button>
-                    </div>
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Console de Debug</h3>
+                    <button onClick={() => setIsTerminalOpen(true)} className="mt-4 px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 flex items-center gap-2 font-mono text-sm">
+                        <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                        Visualizar Logs do Sistema
+                    </button>
                 </div>
             )}
         </div>
     );
     
-    const renderApplicationSettings = () => (
-        <div className="space-y-6">
-            <div>
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Instalação do Aplicativo</h3>
-                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                    Instale o GestorPRO em seu dispositivo para uma experiência mais rápida e integrada, com acesso offline.
-                </p>
-                <div className="mt-4">
-                    {isStandalone ? (
-                        <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium p-3 bg-green-50 dark:bg-green-900/30 rounded-lg">
-                           <CheckCircleIcon />
-                           <span>O aplicativo já está instalado neste dispositivo.</span>
-                        </div>
-                    ) : (
-                        <button
-                            onClick={handleInstallClick}
-                            className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 font-semibold"
-                        >
-                            <InstallIcon /> Instalar Aplicativo
-                        </button>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-
-    const renderInstallInstructions = () => {
+    const renderApplicationSettings = () => {
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
         const isAndroid = /Android/.test(navigator.userAgent);
-        
+
         return (
-             <div className="text-gray-700 dark:text-gray-300">
-                <p className="mb-4">O pop-up de instalação automática não está disponível no momento. Você pode instalar manualmente seguindo os passos abaixo:</p>
-                {isIOS && (
-                    <div>
-                        <h4 className="font-bold mb-2">Para iPhone/iPad (Safari):</h4>
-                        <ol className="list-decimal list-inside space-y-2">
-                            <li>Toque no ícone de <strong>Compartilhamento</strong> na barra de ferramentas do navegador (um quadrado com uma seta para cima).</li>
-                            <li>Role para baixo na lista de opções.</li>
-                            <li>Toque em <strong>"Adicionar à Tela de Início"</strong>.</li>
-                        </ol>
+            <div className="space-y-6">
+                <div className="bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800 p-6 rounded-2xl">
+                    <div className="flex flex-col items-center text-center">
+                        <div className="h-16 w-16 bg-primary-100 dark:bg-primary-800 rounded-2xl flex items-center justify-center text-primary-600 dark:text-primary-400 mb-4">
+                            <InstallIcon />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-800 dark:text-white">Instalar o {settings.appName}</h3>
+                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 max-w-xs">
+                            Tenha acesso rápido direto da sua tela inicial e trabalhe offline com mais velocidade.
+                        </p>
+                        
+                        <div className="mt-6 w-full">
+                            {isStandalone ? (
+                                <div className="flex flex-col items-center gap-2 text-green-600 dark:text-green-400 font-bold p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-green-100 dark:border-green-900/30">
+                                   <CheckCircleIcon />
+                                   <span>Aplicativo Instalado</span>
+                                   <p className="text-xs font-normal text-gray-500">Você já está usando a versão de alto desempenho.</p>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={handleInstallClick}
+                                    className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary-600 text-white rounded-xl shadow-lg hover:bg-primary-700 transition-all transform active:scale-95 font-bold text-lg"
+                                >
+                                    <InstallIcon />
+                                    {installPromptEvent ? 'Instalar Agora' : 'Como Instalar no Celular'}
+                                </button>
+                            )}
+                        </div>
                     </div>
-                )}
-                {isAndroid && (
-                    <div className="mt-4">
-                        <h4 className="font-bold mb-2">Para Android (Chrome):</h4>
-                        <ol className="list-decimal list-inside space-y-2">
-                            <li>Toque no menu de <strong>três pontos</strong> no canto superior direito do navegador.</li>
-                            <li>Selecione a opção <strong>"Instalar aplicativo"</strong> ou <strong>"Adicionar à tela inicial"</strong>.</li>
-                        </ol>
-                    </div>
-                )}
-                 {!isIOS && !isAndroid && (
-                    <div className="mt-4">
-                        <h4 className="font-bold mb-2">Para outros dispositivos:</h4>
-                        <p>Procure no menu do seu navegador por uma opção como "Instalar aplicativo", "Adicionar à tela inicial" ou "Criar atalho".</p>
-                    </div>
-                )}
-             </div>
-        )
+
+                    {showManualInstructions && !isStandalone && (
+                        <div className="mt-8 pt-8 border-t border-primary-100 dark:border-primary-800 animate-fade-in">
+                            <h4 className="font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-200 dark:bg-primary-800 text-xs">!</span>
+                                Guia de Instalação Manual
+                            </h4>
+                            
+                            {isIOS ? (
+                                <div className="space-y-4">
+                                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">No iPhone (Safari):</p>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm text-lg">📤</div>
+                                            <p className="text-sm text-gray-600 dark:text-gray-400">1. Toque no ícone de <strong>Compartilhar</strong> (quadrado com seta para cima).</p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm text-lg">➕</div>
+                                            <p className="text-sm text-gray-600 dark:text-gray-400">2. Role para baixo e selecione <strong>"Adicionar à Tela de Início"</strong>.</p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm text-lg">✅</div>
+                                            <p className="text-sm text-gray-600 dark:text-gray-400">3. Toque em <strong>"Adicionar"</strong> no canto superior.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : isAndroid ? (
+                                <div className="space-y-4">
+                                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">No Android (Chrome):</p>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm text-lg">⋮</div>
+                                            <p className="text-sm text-gray-600 dark:text-gray-400">1. Toque no menu de <strong>três pontos</strong> no canto superior.</p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm text-lg">📲</div>
+                                            <p className="text-sm text-gray-600 dark:text-gray-400">2. Selecione <strong>"Instalar aplicativo"</strong> ou "Adicionar à tela inicial".</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    Abra o menu do seu navegador e procure por <strong>"Instalar"</strong> ou <strong>"Adicionar à tela inicial"</strong>.
+                                </p>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl">
+                    <h4 className="text-sm font-bold text-yellow-800 dark:text-yellow-400 flex items-center gap-2 mb-1">
+                         🛡️ Segurança das Chaves de API
+                    </h4>
+                    <p className="text-xs text-yellow-700 dark:text-yellow-500 leading-relaxed">
+                        A chave do Firebase é identificada publicamente. Para proteção total, acesse o <strong>Console do Google Cloud</strong>, selecione sua chave e adicione uma <strong>Restrição de Site (HTTP Referrer)</strong> para o domínio oficial do seu sistema. Isso impede que terceiros usem sua cota de API em outros sites.
+                    </p>
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -416,26 +361,26 @@ const Settings: React.FC = () => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Configurações</h1>
-                    <p className="mt-1 text-gray-600 dark:text-gray-400">Personalize as opções e a aparência da aplicação.</p>
+                    <p className="mt-1 text-gray-600 dark:text-gray-400">Personalize o comportamento e visual do seu sistema.</p>
                 </div>
-                {canUpdate && (
-                    <button onClick={handleSave} className="px-6 py-2 bg-primary-600 text-white rounded-lg shadow hover:bg-primary-700 transition-colors font-semibold disabled:bg-primary-300 disabled:cursor-not-allowed w-full sm:w-auto">
+                {canUpdate && activeTab !== 'application' && (
+                    <button onClick={handleSave} className="px-6 py-2 bg-primary-600 text-white rounded-lg shadow-lg hover:bg-primary-700 transition-all font-bold w-full sm:w-auto">
                         Salvar Alterações
                     </button>
                 )}
             </div>
             
-            <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
-                <nav className="-mb-px flex space-x-6 overflow-x-auto">
+            <div className="border-b border-gray-200 dark:border-gray-700 mb-6 overflow-x-auto no-scrollbar">
+                <nav className="-mb-px flex space-x-6 min-w-max pb-1">
                     {visibleTabs.map(tab => (
-                       <button key={tab.id} onClick={() => setActiveTab(tab.id as Tab)} className={`py-3 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === tab.id ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+                       <button key={tab.id} onClick={() => setActiveTab(tab.id as Tab)} className={`py-3 px-1 border-b-2 font-bold text-sm transition-all ${activeTab === tab.id ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
                            {tab.label}
                        </button>
                     ))}
                 </nav>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700/50">
                 {activeTab === 'general' && renderGeneralSettings()}
                 {activeTab === 'layout' && renderLayoutSettings()}
                 {activeTab === 'appearance' && renderAppearanceSettings()}
@@ -445,44 +390,19 @@ const Settings: React.FC = () => {
 
             {isAdminOrMaster && <DebugTerminal isOpen={isTerminalOpen} onClose={() => setIsTerminalOpen(false)} />}
 
-            <Modal isOpen={isModalOpen} onClose={closeModal} title={currentItem ? 'Editar Item' : 'Adicionar Item'}>
+            <Modal isOpen={isModalOpen} onClose={closeModal} title={currentItem ? 'Editar Registro' : 'Novo Registro'}>
                 <form onSubmit={handleSaveItem}>
                     <div>
-                        <label htmlFor="itemName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Nome
-                        </label>
-                        <input
-                            type="text"
-                            id="itemName"
-                            value={itemName}
-                            onChange={(e) => setItemName(e.target.value)}
-                            required
-                            autoFocus
-                            className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                        />
+                        <label htmlFor="itemName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome</label>
+                        <input type="text" id="itemName" value={itemName} onChange={(e) => setItemName(e.target.value)} required autoFocus className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" />
                     </div>
                     <div className="mt-6 flex justify-end space-x-3">
-                        <button
-                            type="button"
-                            onClick={closeModal}
-                            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 transition-colors"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            type="submit"
-                            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
-                        >
-                            Salvar
-                        </button>
+                        <button type="button" onClick={closeModal} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md">Cancelar</button>
+                        <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-md font-bold">Salvar</button>
                     </div>
                 </form>
             </Modal>
 
-            <Modal isOpen={isInstallInstructionsOpen} onClose={() => setIsInstallInstructionsOpen(false)} title="Como Instalar o Aplicativo">
-                {renderInstallInstructions()}
-            </Modal>
-            
             <ConfirmationDialog isOpen={isConfirmOpen} onClose={closeDeleteDialog} onConfirm={confirmDelete} title="Confirmar Exclusão" message={`Tem certeza que deseja remover "${itemToDelete?.item.name}"? Esta ação não pode ser desfeita.`} />
         </>
     );
