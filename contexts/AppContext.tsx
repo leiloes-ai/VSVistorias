@@ -182,7 +182,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   useEffect(() => {
     const checkStandalone = () => {
-        setIsStandalone(window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone || false);
+        const standalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone || false;
+        setIsStandalone(standalone);
+        console.log(`PWA Diagnostic: Modo Standalone = ${standalone}`);
     };
     checkStandalone();
     window.matchMedia('(display-mode: standalone)').addEventListener('change', checkStandalone);
@@ -192,13 +194,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const host = window.location.host;
         const isSandbox = window.location.protocol === 'blob:' || !host;
         
-        if (isSandbox) return false;
-        if (!isSecure) return false;
-        if (!('serviceWorker' in navigator)) return false;
+        console.log("PWA Diagnostic: Iniciando análise de ambiente...");
+        console.log(`PWA Diagnostic: Protocolo = ${window.location.protocol}`);
+        console.log(`PWA Diagnostic: Host = ${host || 'Sandbox'}`);
+        
+        if (isSandbox) { console.warn("PWA Diagnostic: Ambiente de sandbox detectado. O PWA não pode ser instalado aqui."); return false; }
+        if (!isSecure) { console.warn("PWA Diagnostic: Site não seguro (faltando HTTPS). O PWA requer HTTPS para funcionar."); return false; }
+        if (!('serviceWorker' in navigator)) { console.warn("PWA Diagnostic: Navegador não suporta Service Workers."); return false; }
 
         try {
-            await navigator.serviceWorker.getRegistrations();
+            const regs = await navigator.serviceWorker.getRegistrations();
+            console.log(`PWA Diagnostic: ${regs.length} Service Workers encontrados.`);
         } catch (e) {
+            console.error("PWA Diagnostic: Erro ao verificar registros de SW.");
             return false;
         }
 
@@ -212,11 +220,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' })
             .then(registration => {
                 setSwRegistration(registration);
+                console.info("PWA Diagnostic: Service Worker registrado com sucesso.");
                 registration.onupdatefound = () => {
                     const installingWorker = registration.installing;
                     if (installingWorker) {
                         installingWorker.onstatechange = () => {
                             if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                console.info("PWA Diagnostic: Nova versão disponível!");
                                 setIsUpdateAvailable(true);
                             }
                         };
@@ -224,7 +234,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 };
             })
             .catch(error => {
-                console.error('PWA: Falha no registro:', error.message);
+                console.error('PWA Diagnostic: Falha crítica no registro:', error.message);
             });
     };
 
@@ -235,6 +245,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     const handleBeforeInstallPrompt = (e: Event) => {
+      console.info("PWA Diagnostic: Evento 'beforeinstallprompt' recebido! O aplicativo pode ser instalado agora.");
       e.preventDefault();
       setInstallPromptEvent(e);
     };
@@ -394,10 +405,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const triggerInstallPrompt = async () => {
-    if (!installPromptEvent) return;
+    if (!installPromptEvent) {
+        console.warn("PWA Diagnostic: Tentativa de instalação sem evento capturado. O botão não deveria estar visível.");
+        return;
+    }
     const promptEvent = installPromptEvent as any;
     promptEvent.prompt();
-    await promptEvent.userChoice;
+    const { outcome } = await promptEvent.userChoice;
+    console.info(`PWA Diagnostic: Escolha do usuário para instalação = ${outcome}`);
     setInstallPromptEvent(null);
   };
 

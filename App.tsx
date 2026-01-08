@@ -60,10 +60,13 @@ const App: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-white dark:bg-gray-900">
-          <div className="text-center">
-              <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">Carregando sistema...</h2>
-              <p className="mt-2 text-gray-600 dark:text-gray-400">Por favor, aguarde.</p>
+      <div className="fixed inset-0 flex items-center justify-center bg-white dark:bg-gray-900 z-[200]">
+          <div className="text-center animate-pulse">
+              <div className="h-16 w-16 bg-primary-600 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-lg">
+                  <svg className="w-10 h-10 text-white animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 3v3m0 12v3M3 12h3m12 0h3" strokeLinecap="round"/></svg>
+              </div>
+              <h2 className="text-xl font-black text-gray-800 dark:text-white uppercase tracking-tighter">GestorPRO</h2>
+              <p className="mt-2 text-xs font-bold text-gray-500 dark:text-gray-400">Sincronizando Dados...</p>
           </div>
       </div>
     );
@@ -74,7 +77,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="relative flex h-screen bg-gray-100 dark:bg-gray-900 font-sans overflow-hidden">
+    <div className="fixed inset-0 bg-gray-100 dark:bg-gray-900 font-sans overflow-hidden flex flex-col md:flex-row h-[100dvh] w-screen">
       {isForcePasswordChangeOpen && <ForcePasswordChangeModal onClose={() => setIsForcePasswordChangeOpen(false)} />}
       
       {notification && <Notification message={notification} onClose={clearNotification} />}
@@ -89,14 +92,16 @@ const App: React.FC = () => {
       {/* Overlay for mobile */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 z-20 bg-black/50 md:hidden" 
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden" 
           onClick={() => setIsSidebarOpen(false)}
         ></div>
       )}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-full relative">
         <Header currentPage={activePage} onMenuClick={() => setIsSidebarOpen(true)} />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-4 sm:p-6">
-          {renderPage()}
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-2 sm:p-6 pb-24 md:pb-6 no-scrollbar">
+          <div className="max-w-7xl mx-auto">
+            {renderPage()}
+          </div>
         </main>
       </div>
     </div>

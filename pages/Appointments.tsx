@@ -125,15 +125,6 @@ const Appointments: React.FC = () => {
     });
   }, [userAppointments, searchQuery, users, statusFilter]);
 
-  if (!user || user.permissions.appointments === 'hidden') {
-    return (
-        <div className="text-center p-10 bg-yellow-100 dark:bg-yellow-900 border-l-4 border-yellow-500 rounded-r-lg">
-            <h2 className="text-xl font-bold text-yellow-800 dark:text-yellow-200">Acesso Negado</h2>
-            <p className="mt-2 text-yellow-700 dark:text-yellow-300">Você não tem permissão para visualizar esta página.</p>
-        </div>
-    );
-  }
-
   const openFormModal = (appointment: Appointment | null) => {
     setSelectedAppointment(appointment);
     setIsModalOpen(true);
@@ -225,96 +216,154 @@ const Appointments: React.FC = () => {
     }
   };
 
+  const renderMobileCards = () => (
+    <div className="flex flex-col gap-4 md:hidden w-full pb-10">
+        {filteredAppointments.map(app => (
+            <div key={app.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-5 border-l-8 border-primary-500 w-full overflow-hidden">
+                <div className="flex justify-between items-center mb-4">
+                    <span className="text-[10px] font-bold font-mono text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-2 py-1 rounded-md uppercase">
+                        {app.displayId || `#${app.stringId?.slice(-6).toUpperCase()}`}
+                    </span>
+                    <span className="text-xs font-bold text-gray-400">{new Date(app.date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                </div>
+                <div className="mb-4">
+                    <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{app.licensePlate}</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-tight">{app.description}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3 mb-5 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl text-xs">
+                    <div>
+                        <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Solicitante</span>
+                        <span className="font-bold text-gray-700 dark:text-gray-200 line-clamp-1">{app.requester}</span>
+                    </div>
+                    <div>
+                        <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Pátio</span>
+                        <span className="font-bold text-gray-700 dark:text-gray-200 line-clamp-1">{app.patio}</span>
+                    </div>
+                    <div className="col-span-2 pt-1 border-t border-gray-200 dark:border-gray-700">
+                        <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Vistoriador</span>
+                        <span className="font-bold text-gray-700 dark:text-gray-200">{getInspectorName(app.inspectorId)}</span>
+                    </div>
+                </div>
+                <div className="flex flex-col gap-3">
+                    <select
+                        value={app.status}
+                        onChange={(e) => handleStatusChange(app, e.target.value as AppointmentStatus)}
+                        disabled={!canUpdate}
+                        className={`w-full p-3 text-sm font-black rounded-xl border-0 focus:ring-2 focus:ring-primary-500 shadow-sm transition-all appearance-none text-center ${getStatusColor(app.status)}`}
+                    >
+                        {settings.statuses.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                    </select>
+                    <div className="flex gap-2">
+                        <button onClick={() => handleEditClick(app)} disabled={!canUpdate} className="flex-1 flex justify-center items-center gap-2 p-3 bg-primary-50 text-primary-600 rounded-xl dark:bg-primary-900/30 font-bold active:scale-95 transition-transform"><EditIcon /> Editar</button>
+                        <button onClick={() => handleDeleteClick(app)} disabled={!canCreateOrDelete} className="flex-1 flex justify-center items-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl dark:bg-red-900/30 font-bold active:scale-95 transition-transform"><DeleteIcon /> Excluir</button>
+                    </div>
+                </div>
+            </div>
+        ))}
+    </div>
+  );
+
+  const renderDesktopTable = () => (
+    <div className="overflow-x-auto hidden md:block">
+        <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+          <thead className="text-xs text-white uppercase bg-primary-600">
+            <tr>
+              <th className="px-2 py-3">Id</th><th className="px-2 py-3">Data</th><th className="px-2 py-3">Placa / Descrição</th><th className="px-2 py-3">Solicitante</th><th className="px-2 py-3">Pátio</th><th className="px-2 py-3">Vistoriador</th><th className="px-2 py-3">Status</th><th className="px-2 py-3 text-center">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredAppointments.map(app => (
+              <tr key={app.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                <td className="px-2 py-2">{app.displayId || `#${app.stringId?.slice(-6).toUpperCase()}`}</td>
+                <td className="px-2 py-2">{new Date(app.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                <td className="px-2 py-2">
+                    <div className="font-medium text-gray-900 dark:text-white">{app.licensePlate}</div>
+                    <div className="text-xs truncate max-w-[150px]">{app.description}</div>
+                </td>
+                <td className="px-2 py-2">{app.requester}</td>
+                <td className="px-2 py-2">{app.patio}</td>
+                <td className="px-2 py-2">{getInspectorName(app.inspectorId)}</td>
+                <td className="px-2 py-2 min-w-[120px]">
+                  <select
+                      value={app.status}
+                      onChange={(e) => handleStatusChange(app, e.target.value as AppointmentStatus)}
+                      disabled={!canUpdate}
+                      className={`w-full p-1.5 text-xs font-semibold rounded-md border-0 focus:ring-2 focus:ring-primary-500 ${getStatusColor(app.status)}`}
+                  >
+                      {settings.statuses.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                  </select>
+                </td>
+                <td className="px-2 py-2 flex justify-center gap-2">
+                  <button onClick={() => handleEditClick(app)} disabled={!canUpdate} className="text-primary-500"><EditIcon /></button>
+                  <button onClick={() => handleDeleteClick(app)} disabled={!canCreateOrDelete} className="text-red-500"><DeleteIcon /></button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+    </div>
+  );
+
   return (
     <>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-6 gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Agendamentos</h1>
+            <h1 className="text-2xl sm:text-3xl font-black text-gray-800 dark:text-white">Agendamentos</h1>
             {!isOnline && <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-bold rounded-md animate-pulse">OFFLINE</span>}
           </div>
-          <p className="mt-1 text-gray-600 dark:text-gray-400">Visualize e gerencie as vistorias agendadas.</p>
+          <p className="mt-1 text-xs sm:text-sm text-gray-600 dark:text-gray-400">Gerencie as vistorias agendadas.</p>
         </div>
         <div className="flex flex-col items-stretch sm:items-end gap-2 w-full sm:w-auto">
           {isAdminOrMasterOrClient && (
-              <div className="flex justify-end gap-2">
-                  <button onClick={handleExportExcel} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition-colors"><DownloadIcon />Excel</button>
-                  <button onClick={handleExportPdf} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg shadow hover:bg-red-700 transition-colors"><DownloadIcon />PDF</button>
+              <div className="flex justify-start sm:justify-end gap-2 overflow-x-auto no-scrollbar pb-1">
+                  <button onClick={handleExportExcel} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-green-600 text-white rounded-xl shadow-md hover:bg-green-700 transition-colors whitespace-nowrap font-bold"><DownloadIcon /> Excel</button>
+                  <button onClick={handleExportPdf} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-red-600 text-white rounded-xl shadow-md hover:bg-red-700 transition-colors whitespace-nowrap font-bold"><DownloadIcon /> PDF</button>
               </div>
           )}
           {canCreateOrDelete && (
-            <button onClick={() => openFormModal(null)} className="flex items-center justify-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg shadow hover:bg-primary-600 transition-colors font-semibold">
+            <button onClick={() => openFormModal(null)} className="flex items-center justify-center gap-2 px-5 py-3 bg-primary-600 text-white rounded-2xl shadow-xl hover:bg-primary-700 transition-all font-black text-sm active:scale-95">
               <AddIcon /> Novo Agendamento
             </button>
           )}
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg">
-        <div className="flex flex-col lg:flex-row gap-4 mb-4 lg:items-center">
-            <div className="relative flex-grow w-full">
-                <input type="text" placeholder="Buscar por placa, solicitante, ID, etc..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} spellCheck="true" className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500" />
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><SearchIcon /></div>
+      <div className="bg-white dark:bg-gray-800 p-2 sm:p-5 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700/50">
+        <div className="flex flex-col gap-4 mb-6">
+            <div className="relative w-full">
+                <input type="text" placeholder="Buscar por placa, solicitante, ID..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} spellCheck="true" className="w-full pl-11 pr-4 py-3 text-base border border-gray-300 dark:border-gray-600 rounded-2xl bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-inner" />
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><SearchIcon /></div>
             </div>
             
-            <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700">
-                    <option value="Todos">Todos os Status</option>
-                    {settings.statuses.filter(s => s.name !== 'Solicitado' || !isAdminOrMaster).map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                </select>
-                
-                {isAdminOrMasterOrClient && (
-                    <div className="flex items-center gap-2 w-full">
-                        <input type="checkbox" id="searchByDate" checked={searchByDate} onChange={(e) => handleToggleSearchByDate(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"/>
-                        <label htmlFor="searchByDate" className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Filtrar Período</label>
-                        <input type="date" name="start" value={dateFilter.start} onChange={handleDateFilterChange} disabled={!searchByDate} className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm disabled:opacity-50" />
-                        <span className="text-gray-500 text-sm">a</span>
-                        <input type="date" name="end" value={dateFilter.end} onChange={handleDateFilterChange} disabled={!searchByDate} className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm disabled:opacity-50" />
-                    </div>
-                )}
+            <div className="flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
+                    <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full sm:w-1/3 px-4 py-3 text-sm font-bold border border-gray-300 dark:border-gray-600 rounded-2xl bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-primary-500">
+                        <option value="Todos">Todos os Status</option>
+                        {settings.statuses.filter(s => s.name !== 'Solicitado' || !isAdminOrMaster).map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                    </select>
+                    
+                    {isAdminOrMasterOrClient && (
+                        <div className="flex flex-grow items-center gap-3 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-2xl bg-gray-50 dark:bg-gray-700 overflow-hidden">
+                            <input type="checkbox" id="searchByDate" checked={searchByDate} onChange={(e) => handleToggleSearchByDate(e.target.checked)} className="h-5 w-5 rounded-md border-gray-300 text-primary-600 focus:ring-primary-500"/>
+                            <label htmlFor="searchByDate" className="text-xs font-black text-gray-700 dark:text-gray-300 whitespace-nowrap">POR PERÍODO</label>
+                            <div className={`flex items-center gap-2 flex-grow transition-opacity ${searchByDate ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
+                                <input type="date" name="start" value={dateFilter.start} onChange={handleDateFilterChange} className="w-full bg-transparent border-none p-0 text-xs font-bold focus:ring-0 text-gray-700 dark:text-gray-200" />
+                                <span className="text-gray-400 font-bold">/</span>
+                                <input type="date" name="end" value={dateFilter.end} onChange={handleDateFilterChange} className="w-full bg-transparent border-none p-0 text-xs font-bold focus:ring-0 text-gray-700 dark:text-gray-200" />
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
 
-        {loading ? <p className="text-center py-8">Carregando...</p> : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-              <thead className="text-xs text-white uppercase bg-primary-600">
-                <tr>
-                  <th className="px-2 py-3">Id</th><th className="px-2 py-3">Data</th><th className="px-2 py-3">Placa / Descrição</th><th className="px-2 py-3">Solicitante</th><th className="px-2 py-3">Pátio</th><th className="px-2 py-3">Vistoriador</th><th className="px-2 py-3">Status</th><th className="px-2 py-3 text-center">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAppointments.map(app => (
-                  <tr key={app.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                    <td className="px-2 py-2">{app.displayId || `#${app.stringId?.slice(-6).toUpperCase()}`}</td>
-                    <td className="px-2 py-2">{new Date(app.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
-                    <td className="px-2 py-2">
-                        <div className="font-medium text-gray-900 dark:text-white">{app.licensePlate}</div>
-                        <div className="text-xs truncate max-w-[150px]">{app.description}</div>
-                    </td>
-                    <td className="px-2 py-2">{app.requester}</td>
-                    <td className="px-2 py-2">{app.patio}</td>
-                    <td className="px-2 py-2">{getInspectorName(app.inspectorId)}</td>
-                    <td className="px-2 py-2 min-w-[120px]">
-                      <select
-                          value={app.status}
-                          onChange={(e) => handleStatusChange(app, e.target.value as AppointmentStatus)}
-                          disabled={!canUpdate}
-                          className={`w-full p-1.5 text-xs font-semibold rounded-md border-0 focus:ring-2 focus:ring-primary-500 ${getStatusColor(app.status)}`}
-                      >
-                          {settings.statuses.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                      </select>
-                    </td>
-                    <td className="px-2 py-2 flex justify-center gap-2">
-                      <button onClick={() => handleEditClick(app)} disabled={!canUpdate} className="text-primary-500"><EditIcon /></button>
-                      <button onClick={() => handleDeleteClick(app)} disabled={!canCreateOrDelete} className="text-red-500"><DeleteIcon /></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {filteredAppointments.length === 0 && <p className="text-center py-8 text-gray-500">Nenhum registro encontrado.</p>}
-          </div>
+        {loading ? <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"></div></div> : (
+            <div className="w-full">
+                {renderDesktopTable()}
+                {renderMobileCards()}
+                {filteredAppointments.length === 0 && <p className="text-center py-12 text-gray-400 font-medium italic">Nenhum agendamento encontrado.</p>}
+            </div>
         )}
       </div>
 
