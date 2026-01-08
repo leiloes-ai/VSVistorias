@@ -3,54 +3,87 @@ import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 import { AppProvider } from './contexts/AppContext.tsx';
 
-// --- Global Debug Logger ---
+// --- Global Debug Logger (Versão Ultra-Safe) ---
 (window as any)._debugLogs = [];
 const _originalConsole = { ...console };
 const _logLevels: (keyof Console)[] = ['log', 'warn', 'error', 'info', 'debug'];
 
-const getCircularReplacer = () => {
-    const seen = new WeakSet();
-    return (key: string, value: any) => {
-        if (typeof value === "object" && value !== null) {
-            if (seen.has(value)) return "[Circular]";
-            seen.add(value);
-        }
-        return value;
-    };
+/**
+ * Serializador seguro que lida com estruturas circulares e objetos complexos do Firebase
+ */
+const safeStringify = (obj: any, indent = 2): string => {
+    const cache = new WeakSet();
+    const ret = JSON.stringify(
+        obj,
+        (key, value) => {
+            if (typeof value === 'object' && value !== null) {
+                // Evita circularidade
+                if (cache.has(value)) {
+                    return '[Circular]';
+                }
+                cache.add(value);
+
+                // Evita serializar objetos massivos ou internos conhecidos
+                const constructorName = value.constructor?.name;
+                if (
+                    value instanceof HTMLElement || 
+                    value instanceof Window || 
+                    value instanceof Document ||
+                    (constructorName && (
+                        constructorName.startsWith('Firestore') || 
+                        constructorName.startsWith('Firebase') ||
+                        ['dr', 'Et', 'jt', 'Ot'].includes(constructorName) // Ofuscados do Firebase
+                    ))
+                ) {
+                    return `[Object ${constructorName || 'Complex'}]`;
+                }
+            }
+            return value;
+        },
+        indent
+    );
+    return ret;
 };
 
 const pushToLog = (level: string, message: string) => {
-    if ((window as any)._debugLogs.length > 500) (window as any)._debugLogs.shift();
-    (window as any)._debugLogs.push({
-        level,
-        message,
-        timestamp: new Date().toLocaleTimeString()
-    });
+    try {
+        const logs = (window as any)._debugLogs;
+        if (logs.length > 500) logs.shift();
+        logs.push({
+            level,
+            message: message.substring(0, 5000), // Limite de tamanho por entrada
+            timestamp: new Date().toLocaleTimeString()
+        });
+    } catch (e) {
+        _originalConsole.error("Falha ao empurrar log:", e);
+    }
 };
 
 _logLevels.forEach(level => {
   const originalMethod = _originalConsole[level];
   if (typeof originalMethod === 'function') {
     (console as any)[level] = (...args: any[]) => {
+      // Sempre executa o console original primeiro
       originalMethod.apply(console, args);
+      
       try {
-        const message = args.map(arg => {
+        const messageParts = args.map(arg => {
           if (arg instanceof Error) return `Error: ${arg.message}\n${arg.stack}`;
           if (typeof arg === 'string') return arg;
           if (typeof arg === 'undefined') return 'undefined';
           if (arg === null) return 'null';
+          if (typeof arg !== 'object') return String(arg);
           
           try {
-            // Tenta serializar com suporte a estruturas circulares
-            return JSON.stringify(arg, getCircularReplacer(), 2);
+            return safeStringify(arg);
           } catch (e) {
-            // Fallback caso a serialização falhe (ex: objetos internos do Firebase muito complexos)
-            return `[Unserializable Object: ${Object.prototype.toString.call(arg)}]`;
+            return `[Unserializable ${typeof arg}]`;
           }
-        }).join(' ');
-        pushToLog(level, message);
+        });
+        
+        pushToLog(level, messageParts.join(' '));
       } catch (e) {
-        _originalConsole.error("Erro crítico no logger:", e);
+        // Silencioso para não entrar em loop infinito se o erro for no próprio log
       }
     };
   }
@@ -60,18 +93,28 @@ _logLevels.forEach(level => {
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data && event.data.type === 'SW_LOG') {
-            (console as any)[event.data.level](event.data.message);
+            const level = event.data.level as keyof Console;
+            if (_logLevels.includes(level)) {
+                (console as any)[level](`[SW] ${event.data.message}`);
+            }
         }
     });
 }
 
 window.onerror = (msg, url, lineNo, columnNo, error) => {
-    console.error(`[Fatal] ${msg} @ ${url}:${lineNo}`, error);
+    // Usa o console original aqui para evitar qualquer chance de recursão se o erro for no logger
+    _originalConsole.error(`[Fatal] ${msg} @ ${url}:${lineNo}`, error);
+    
+    // Tenta registrar o erro fatal de forma simples
+    const errorMsg = error instanceof Error ? error.message : String(msg);
+    pushToLog('error', `[FATAL EXCEPTION] ${errorMsg} (${url}:${lineNo})`);
+    
     return false;
 };
 
 window.onunhandledrejection = (event) => {
-    console.error(`[Promise Rejected] ${event.reason}`);
+    _originalConsole.error(`[Promise Rejected] ${event.reason}`);
+    pushToLog('error', `[UNHANDLED REJECTION] ${String(event.reason)}`);
 };
 
 console.log("Terminal Iniciado. Monitorando ambiente...");

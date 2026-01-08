@@ -118,6 +118,8 @@ const Appointments: React.FC = () => {
             (app.description || '').toLowerCase().includes(query) ||
             (app.demand || '').toLowerCase().includes(query) ||
             (app.requester || '').toLowerCase().includes(query) ||
+            (app.notes || '').toLowerCase().includes(query) ||
+            (app.inspectionType || '').toLowerCase().includes(query) ||
             inspectorName.includes(query) ||
             (app.displayId || '').toLowerCase().includes(query) ||
             systemId.includes(query)
@@ -184,6 +186,7 @@ const Appointments: React.FC = () => {
         'Data': new Date(app.date + 'T00:00:00').toLocaleDateString('pt-BR'),
         'Vistoriador': getInspectorName(app.inspectorId),
         'Status': app.status,
+        'Observações': app.notes || ''
     }));
     const worksheet = utils.json_to_sheet(dataToExport);
     const workbook = utils.book_new();
@@ -228,22 +231,32 @@ const Appointments: React.FC = () => {
                 </div>
                 <div className="mb-4">
                     <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight break-all">{app.licensePlate}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-tight line-clamp-2">{app.description}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-bold leading-tight break-words mt-1">{app.description}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-3 mb-5 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl text-xs">
+                <div className="grid grid-cols-2 gap-3 mb-4 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl text-xs">
                     <div className="min-w-0">
-                        <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Solicitante</span>
+                        <span className="block text-[10px] uppercase font-bold text-gray-400 mb-0.5">Solicitante / Demanda</span>
                         <span className="font-bold text-gray-700 dark:text-gray-200 block truncate">{app.requester}</span>
+                        <span className="text-[10px] text-primary-500 dark:text-primary-400 font-black block truncate">{app.demand}</span>
                     </div>
                     <div className="min-w-0">
-                        <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Pátio</span>
-                        <span className="font-bold text-gray-700 dark:text-gray-200 block truncate">{app.patio}</span>
+                        <span className="block text-[10px] uppercase font-bold text-gray-400 mb-0.5">Tipo / Pátio</span>
+                        <span className="font-bold text-gray-700 dark:text-gray-200 block truncate">{app.inspectionType}</span>
+                        <span className="text-[10px] text-gray-500 dark:text-gray-400 block truncate">{app.patio}</span>
                     </div>
                     <div className="col-span-2 pt-1 border-t border-gray-200 dark:border-gray-700 min-w-0">
-                        <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Vistoriador</span>
+                        <span className="block text-[10px] uppercase font-bold text-gray-400 mb-0.5">Vistoriador</span>
                         <span className="font-bold text-gray-700 dark:text-gray-200 block truncate">{getInspectorName(app.inspectorId)}</span>
                     </div>
                 </div>
+
+                {app.notes && (
+                    <div className="mb-5 p-3 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-100 dark:border-amber-900/20">
+                        <span className="block text-[10px] uppercase font-black text-amber-600 dark:text-amber-500 mb-1 tracking-wider text-center">Observações do Agendamento</span>
+                        <p className="text-xs text-amber-800 dark:text-amber-200/80 italic break-words leading-relaxed">{app.notes}</p>
+                    </div>
+                )}
+
                 <div className="flex flex-col gap-3">
                     <select
                         value={app.status}
@@ -268,34 +281,51 @@ const Appointments: React.FC = () => {
         <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
           <thead className="text-xs text-white uppercase bg-primary-600">
             <tr>
-              <th className="px-2 py-3">Id</th><th className="px-2 py-3">Data</th><th className="px-2 py-3">Placa / Descrição</th><th className="px-2 py-3">Solicitante</th><th className="px-2 py-3">Pátio</th><th className="px-2 py-3">Vistoriador</th><th className="px-2 py-3">Status</th><th className="px-2 py-3 text-center">Ações</th>
+              <th className="px-2 py-3">Id</th>
+              <th className="px-2 py-3">Data</th>
+              <th className="px-2 py-3">Placa / Descrição</th>
+              <th className="px-2 py-3">Solicitante / Demanda</th>
+              <th className="px-2 py-3">Tipo / Pátio</th>
+              <th className="px-2 py-3">Observações</th>
+              <th className="px-2 py-3">Vistoriador</th>
+              <th className="px-2 py-3">Status</th>
+              <th className="px-2 py-3 text-center">Ações</th>
             </tr>
           </thead>
           <tbody>
             {filteredAppointments.map(app => (
               <tr key={app.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                <td className="px-2 py-2">{app.displayId || `#${app.stringId?.slice(-6).toUpperCase()}`}</td>
-                <td className="px-2 py-2">{new Date(app.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                <td className="px-2 py-2 font-mono text-[11px]">{app.displayId || `#${app.stringId?.slice(-6).toUpperCase()}`}</td>
+                <td className="px-2 py-2 whitespace-nowrap">{new Date(app.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
                 <td className="px-2 py-2">
-                    <div className="font-medium text-gray-900 dark:text-white">{app.licensePlate}</div>
-                    <div className="text-xs truncate max-w-[150px]">{app.description}</div>
+                    <div className="font-black text-gray-900 dark:text-white">{app.licensePlate}</div>
+                    <div className="text-[11px] break-words max-w-[200px] text-gray-500 dark:text-gray-400 leading-tight">{app.description}</div>
                 </td>
-                <td className="px-2 py-2">{app.requester}</td>
-                <td className="px-2 py-2">{app.patio}</td>
-                <td className="px-2 py-2">{getInspectorName(app.inspectorId)}</td>
+                <td className="px-2 py-2">
+                    <div className="font-semibold text-gray-800 dark:text-gray-200">{app.requester}</div>
+                    <div className="text-[10px] text-primary-500 uppercase font-black">{app.demand}</div>
+                </td>
+                <td className="px-2 py-2">
+                    <div className="font-semibold text-gray-800 dark:text-gray-200">{app.inspectionType}</div>
+                    <div className="text-[10px] text-gray-500">{app.patio}</div>
+                </td>
+                <td className="px-2 py-2">
+                    <div className="text-[11px] break-words max-w-[200px] italic text-gray-500 dark:text-gray-400 leading-tight">{app.notes || '---'}</div>
+                </td>
+                <td className="px-2 py-2 whitespace-nowrap">{getInspectorName(app.inspectorId)}</td>
                 <td className="px-2 py-2 min-w-[120px]">
                   <select
                       value={app.status}
                       onChange={(e) => handleStatusChange(app, e.target.value as AppointmentStatus)}
                       disabled={!canUpdate}
-                      className={`w-full p-1.5 text-xs font-semibold rounded-md border-0 focus:ring-2 focus:ring-primary-500 ${getStatusColor(app.status)}`}
+                      className={`w-full p-1.5 text-[11px] font-black rounded-md border-0 focus:ring-2 focus:ring-primary-500 ${getStatusColor(app.status)}`}
                   >
                       {settings.statuses.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                   </select>
                 </td>
                 <td className="px-2 py-2 flex justify-center gap-2">
-                  <button onClick={() => handleEditClick(app)} disabled={!canUpdate} className="text-primary-500"><EditIcon /></button>
-                  <button onClick={() => handleDeleteClick(app)} disabled={!canCreateOrDelete} className="text-red-500"><DeleteIcon /></button>
+                  <button onClick={() => handleEditClick(app)} disabled={!canUpdate} className="text-primary-500 hover:scale-110 transition-transform"><EditIcon /></button>
+                  <button onClick={() => handleDeleteClick(app)} disabled={!canCreateOrDelete} className="text-red-500 hover:scale-110 transition-transform"><DeleteIcon /></button>
                 </td>
               </tr>
             ))}
@@ -312,7 +342,7 @@ const Appointments: React.FC = () => {
             <h1 className="text-2xl sm:text-3xl font-black text-gray-800 dark:text-white">Agendamentos</h1>
             {!isOnline && <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-bold rounded-md animate-pulse">OFFLINE</span>}
           </div>
-          <p className="mt-1 text-xs sm:text-sm text-gray-600 dark:text-gray-400">Gerencie as vistorias agendadas.</p>
+          <p className="mt-1 text-xs sm:text-sm text-gray-600 dark:text-gray-400">Gerencie as vistorias agendadas com todos os detalhes.</p>
         </div>
         <div className="flex flex-col items-stretch sm:items-end gap-2 w-full sm:w-auto">
           {isAdminOrMasterOrClient && (
@@ -332,7 +362,7 @@ const Appointments: React.FC = () => {
       <div className="bg-white dark:bg-gray-800 p-2 sm:p-5 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700/50 w-full overflow-hidden">
         <div className="flex flex-col gap-4 mb-6">
             <div className="relative w-full">
-                <input type="text" placeholder="Buscar por placa, solicitante, ID..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} spellCheck="true" className="w-full pl-11 pr-4 py-3 text-base border border-gray-300 dark:border-gray-600 rounded-2xl bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-inner" />
+                <input type="text" placeholder="Buscar por placa, solicitante, demanda, observação..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} spellCheck="true" className="w-full pl-11 pr-4 py-3 text-base border border-gray-300 dark:border-gray-600 rounded-2xl bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-inner" />
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><SearchIcon /></div>
             </div>
             
