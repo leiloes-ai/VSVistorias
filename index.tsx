@@ -37,11 +37,20 @@ _logLevels.forEach(level => {
         const message = args.map(arg => {
           if (arg instanceof Error) return `Error: ${arg.message}\n${arg.stack}`;
           if (typeof arg === 'string') return arg;
-          return JSON.stringify(arg, getCircularReplacer(), 2);
+          if (typeof arg === 'undefined') return 'undefined';
+          if (arg === null) return 'null';
+          
+          try {
+            // Tenta serializar com suporte a estruturas circulares
+            return JSON.stringify(arg, getCircularReplacer(), 2);
+          } catch (e) {
+            // Fallback caso a serialização falhe (ex: objetos internos do Firebase muito complexos)
+            return `[Unserializable Object: ${Object.prototype.toString.call(arg)}]`;
+          }
         }).join(' ');
         pushToLog(level, message);
       } catch (e) {
-        _originalConsole.error("Erro no logger:", e);
+        _originalConsole.error("Erro crítico no logger:", e);
       }
     };
   }

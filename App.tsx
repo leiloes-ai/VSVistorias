@@ -77,7 +77,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="fixed inset-0 bg-gray-100 dark:bg-gray-900 font-sans overflow-hidden flex flex-col md:flex-row h-[100dvh] w-full max-w-full">
+    <div className="fixed inset-0 bg-gray-100 dark:bg-gray-900 font-sans overflow-hidden flex flex-col md:flex-row h-full w-full max-w-full">
       {isForcePasswordChangeOpen && <ForcePasswordChangeModal onClose={() => setIsForcePasswordChangeOpen(false)} />}
       
       {notification && <Notification message={notification} onClose={clearNotification} />}
@@ -85,13 +85,11 @@ const App: React.FC = () => {
       
       <InstallPWAButton />
       
-      {/* Sidebar must be z-50 to be above the overlay */}
       <Sidebar 
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
       />
       
-      {/* Overlay for mobile (z-40) */}
       {isSidebarOpen && (
         <div 
           className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden" 
@@ -101,7 +99,7 @@ const App: React.FC = () => {
       
       <div className="flex-1 flex flex-col min-w-0 h-full relative overflow-hidden">
         <Header currentPage={activePage} onMenuClick={() => setIsSidebarOpen(true)} />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-2 sm:p-6 pb-24 md:pb-6 no-scrollbar">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-3 sm:p-6 pb-24 md:pb-6 no-scrollbar">
           <div className="max-w-7xl mx-auto w-full">
             {renderPage()}
           </div>

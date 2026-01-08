@@ -1,4 +1,3 @@
-
 import React, { useState, useContext, useMemo, useCallback } from 'react';
 import { AppContext } from '../../contexts/AppContext.tsx';
 import { FinancialTransaction } from '../../types.ts';
@@ -14,13 +13,13 @@ const AnyPie = Pie as any;
 type FilterPreset = 'thisMonth' | 'last30' | 'thisYear' | 'custom';
 
 const StatCard: React.FC<{ title: string; value: string; icon: React.ReactNode; colorClass: string; }> = ({ title, value, icon, colorClass }) => (
-    <div className="bg-white dark:bg-gray-800/50 p-4 rounded-xl shadow-md flex items-start gap-4">
-        <div className={`p-3 rounded-lg ${colorClass.replace('text-', 'bg-').replace('600', '100')} dark:${colorClass.replace('text-', 'bg-').replace('600', '900/50')}`}>
+    <div className="bg-white dark:bg-gray-800/50 p-3 sm:p-4 rounded-xl shadow-md flex items-center sm:items-start gap-2 sm:gap-4 overflow-hidden">
+        <div className={`p-2 sm:p-3 rounded-lg flex-shrink-0 ${colorClass.replace('text-', 'bg-').replace('600', '100')} dark:${colorClass.replace('text-', 'bg-').replace('600', '900/50')}`}>
             <span className={colorClass}>{icon}</span>
         </div>
-        <div>
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
+        <div className="min-w-0">
+            <p className="text-[10px] sm:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">{title}</p>
+            <p className="text-sm sm:text-2xl font-bold text-gray-900 dark:text-white truncate">{value}</p>
         </div>
     </div>
 );
@@ -230,25 +229,25 @@ const FinancialDashboard: React.FC = () => {
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-                <div className="flex items-center gap-2 bg-white dark:bg-gray-800/50 p-1 rounded-lg shadow-sm">
-                    {[{id: 'thisMonth', label: 'Este Mês'}, {id: 'last30', label: 'Últimos 30 dias'}, {id: 'thisYear', label: 'Este Ano'}].map(p => (
-                        <button key={p.id} onClick={() => setPreset(p.id as FilterPreset)} className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${filterPreset === p.id ? 'bg-primary-500 text-white shadow' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>{p.label}</button>
+                <div className="flex items-center gap-2 bg-white dark:bg-gray-800/50 p-1 rounded-lg shadow-sm w-full sm:w-auto overflow-x-auto no-scrollbar">
+                    {[{id: 'thisMonth', label: 'Este Mês'}, {id: 'last30', label: '30 dias'}, {id: 'thisYear', label: 'Este Ano'}].map(p => (
+                        <button key={p.id} onClick={() => setPreset(p.id as FilterPreset)} className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap ${filterPreset === p.id ? 'bg-primary-500 text-white shadow' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>{p.label}</button>
                     ))}
                 </div>
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-2 text-sm">
-                        <input type="date" name="start" value={customDateRange.start} onChange={handleDateChange} className="bg-white dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200 dark:color-scheme-dark" />
-                        <span className="text-gray-500">a</span>
-                        <input type="date" name="end" value={customDateRange.end} onChange={handleDateChange} className="bg-white dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200 dark:color-scheme-dark" />
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <div className="flex items-center gap-2 text-xs flex-1">
+                        <input type="date" name="start" value={customDateRange.start} onChange={handleDateChange} className="bg-white dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200 w-full" />
+                        <span className="text-gray-500">-</span>
+                        <input type="date" name="end" value={customDateRange.end} onChange={handleDateChange} className="bg-white dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200 w-full" />
                     </div>
-                    <button onClick={handleExportPdf} className="p-2 bg-white dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"><DownloadIcon /></button>
+                    <button onClick={handleExportPdf} className="p-2 bg-white dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex-shrink-0"><DownloadIcon /></button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
                 <StatCard title="Faturamento" value={formatCurrency(dashboardData.kpis.revenue)} icon={<ArrowTrendingUpIcon/>} colorClass="text-green-600"/>
                 <StatCard title="Custos" value={formatCurrency(dashboardData.kpis.expense)} icon={<ArrowTrendingDownIcon/>} colorClass="text-red-600"/>
-                <StatCard title="Lucro/Prejuízo" value={formatCurrency(dashboardData.kpis.balance)} icon={<CurrencyDollarIcon/>} colorClass={dashboardData.kpis.balance >= 0 ? "text-blue-600" : "text-red-600"}/>
+                <StatCard title="Saldo" value={formatCurrency(dashboardData.kpis.balance)} icon={<CurrencyDollarIcon/>} colorClass={dashboardData.kpis.balance >= 0 ? "text-blue-600" : "text-red-600"}/>
                 <StatCard title="A Receber" value={formatCurrency(dashboardData.kpis.totalReceivable)} icon={<ArrowTrendingUpIcon/>} colorClass="text-amber-600"/>
                 <StatCard title="A Pagar" value={formatCurrency(dashboardData.kpis.totalPayable)} icon={<ArrowTrendingDownIcon/>} colorClass="text-rose-600"/>
             </div>
@@ -257,7 +256,7 @@ const FinancialDashboard: React.FC = () => {
                 <>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <AlertSummaryCard title="Contas Vencidas" count={dashboardData.overduePayables.items.length} totalValue={dashboardData.overduePayables.total} icon={<ExclamationTriangleIcon/>} colorClass="text-red-600" onClick={() => setActiveFinancialPage('Contas a pagar')} />
-                    <AlertSummaryCard title="Próximos Vencimentos (7 dias)" count={dashboardData.upcomingPayables.items.length} totalValue={dashboardData.upcomingPayables.total} icon={<ExclamationTriangleIcon/>} colorClass="text-amber-600" onClick={() => setActiveFinancialPage('Contas a pagar')} />
+                    <AlertSummaryCard title="Vencimentos em 7 dias" count={dashboardData.upcomingPayables.items.length} totalValue={dashboardData.upcomingPayables.total} icon={<ExclamationTriangleIcon/>} colorClass="text-amber-600" onClick={() => setActiveFinancialPage('Contas a pagar')} />
                     <div className="bg-white dark:bg-gray-800/50 p-4 rounded-xl shadow-md">
                         <h3 className="font-semibold text-gray-800 dark:text-white mb-3">Últimas Transações</h3>
                         <div className="space-y-3">{dashboardData.recentTransactions.length > 0 ? dashboardData.recentTransactions.map(t => (
@@ -266,40 +265,40 @@ const FinancialDashboard: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800/50 p-4 rounded-xl shadow-md h-[350px]">
-                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2 text-center">Evolução do Saldo</h3>
+                <div className="bg-white dark:bg-gray-800/50 p-4 rounded-xl shadow-md h-[300px] sm:h-[350px]">
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2 text-center text-sm sm:text-base">Evolução do Saldo</h3>
                     <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={dashboardData.balanceEvolution} margin={{ top: 5, right: 30, left: 20, bottom: 20 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#4a5568' : '#e2e8f0'} />
-                            <XAxis dataKey="date" tick={{ fill: theme === 'dark' ? '#a0aec0' : '#4a5568', fontSize: 12 }} />
-                            <YAxis tick={{ fill: theme === 'dark' ? '#a0aec0' : '#4a5568', fontSize: 12 }} tickFormatter={(value) => `R$${Number(value)/1000}k`} />
-                            <Tooltip formatter={(value: any) => (typeof value === 'number' ? formatCurrency(value) : String(value))} labelFormatter={(label) => `Data: ${label}`} contentStyle={{ backgroundColor: theme === 'dark' ? '#2d3748' : '#fff', border: '1px solid #4a5568' }}/>
-                            <Legend />
-                            <Line type="monotone" dataKey="Saldo" stroke="#3b82f6" strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 6 }} />
+                        <LineChart data={dashboardData.balanceEvolution} margin={{ top: 5, right: 10, left: 0, bottom: 20 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#4a5568' : '#e2e8f0'} vertical={false} />
+                            <XAxis dataKey="date" tick={{ fill: theme === 'dark' ? '#a0aec0' : '#4a5568', fontSize: 10 }} />
+                            <YAxis tick={{ fill: theme === 'dark' ? '#a0aec0' : '#4a5568', fontSize: 10 }} width={45} tickFormatter={(value) => `${Number(value)/1000}k`} />
+                            <Tooltip formatter={(value: any) => (typeof value === 'number' ? formatCurrency(value) : String(value))} labelFormatter={(label) => `Data: ${label}`} contentStyle={{ backgroundColor: theme === 'dark' ? '#2d3748' : '#fff', border: '1px solid #4a5568', fontSize: '12px' }}/>
+                            <Legend wrapperStyle={{ fontSize: '10px' }} />
+                            <Line type="monotone" dataKey="Saldo" stroke="#3b82f6" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                    <div className="lg:col-span-3 bg-white dark:bg-gray-800/50 p-4 rounded-xl shadow-md h-[350px]">
-                        <h3 className="font-semibold text-gray-800 dark:text-white mb-2 text-center">Fluxo de Caixa Mensal</h3>
-                         <ResponsiveContainer width="100%" height="100%"><BarChart data={dashboardData.cashFlow} margin={{ top: 5, right: 20, left: -10, bottom: 20 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#4a5568' : '#e2e8f0'} />
-                            <XAxis dataKey="month" tick={{ fill: theme === 'dark' ? '#a0aec0' : '#4a5568', fontSize: 12 }} />
-                            <YAxis tick={{ fill: theme === 'dark' ? '#a0aec0' : '#4a5568', fontSize: 12 }} tickFormatter={(value) => `R$${Number(value)/1000}k`} />
-                            <Tooltip formatter={(value: any) => (typeof value === 'number' ? formatCurrency(value) : String(value))} cursor={{ fill: 'rgba(128,128,128,0.1)' }} contentStyle={{backgroundColor: theme === 'dark' ? '#2d3748' : '#fff', border: '1px solid #4a5568'}}/>
-                            <Legend />
+                    <div className="lg:col-span-3 bg-white dark:bg-gray-800/50 p-4 rounded-xl shadow-md h-[300px] sm:h-[350px]">
+                        <h3 className="font-semibold text-gray-800 dark:text-white mb-2 text-center text-sm sm:text-base">Fluxo de Caixa Mensal</h3>
+                         <ResponsiveContainer width="100%" height="100%"><BarChart data={dashboardData.cashFlow} margin={{ top: 5, right: 10, left: 0, bottom: 20 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#4a5568' : '#e2e8f0'} vertical={false} />
+                            <XAxis dataKey="month" tick={{ fill: theme === 'dark' ? '#a0aec0' : '#4a5568', fontSize: 10 }} />
+                            <YAxis tick={{ fill: theme === 'dark' ? '#a0aec0' : '#4a5568', fontSize: 10 }} width={45} tickFormatter={(value) => `${Number(value)/1000}k`} />
+                            <Tooltip formatter={(value: any) => (typeof value === 'number' ? formatCurrency(value) : String(value))} cursor={{ fill: 'rgba(128,128,128,0.1)' }} contentStyle={{backgroundColor: theme === 'dark' ? '#2d3748' : '#fff', border: '1px solid #4a5568', fontSize: '12px'}}/>
+                            <Legend wrapperStyle={{ fontSize: '10px' }} />
                             <Bar dataKey="Receita" fill="#10b981" radius={[4, 4, 0, 0]} />
                             <Bar dataKey="Despesa" fill="#f43f5e" radius={[4, 4, 0, 0]} />
                         </BarChart></ResponsiveContainer>
                     </div>
-                    <div className="lg:col-span-2 bg-white dark:bg-gray-800/50 p-4 rounded-xl shadow-md h-[350px]">
-                        <h3 className="font-semibold text-gray-800 dark:text-white mb-2 text-center">Composição de Despesas</h3>
+                    <div className="lg:col-span-2 bg-white dark:bg-gray-800/50 p-4 rounded-xl shadow-md h-[300px] sm:h-[350px]">
+                        <h3 className="font-semibold text-gray-800 dark:text-white mb-2 text-center text-sm sm:text-base">Composição de Despesas</h3>
                         <ResponsiveContainer width="100%" height="100%">
-                            <PieChart><AnyPie data={dashboardData.expenses} cx="50%" cy="50%" innerRadius="55%" outerRadius="80%" fill="#8884d8" paddingAngle={5} dataKey="value" activeIndex={activeIndex} activeShape={(props: any) => renderActiveShape({...props, theme: theme})} onMouseEnter={onPieEnter}>
+                            <PieChart><AnyPie data={dashboardData.expenses} cx="50%" cy="50%" innerRadius="45%" outerRadius="70%" fill="#8884d8" paddingAngle={5} dataKey="value" activeIndex={activeIndex} activeShape={(props: any) => renderActiveShape({...props, theme: theme})} onMouseEnter={onPieEnter}>
                                 {dashboardData.expenses.map((entry: any, index: number) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                             </AnyPie>
-                            <Tooltip formatter={(value: any) => (typeof value === 'number' ? formatCurrency(value) : String(value))} contentStyle={{backgroundColor: theme === 'dark' ? '#2d3748' : '#fff', border: '1px solid #4a5568'}}/>
+                            <Tooltip formatter={(value: any) => (typeof value === 'number' ? formatCurrency(value) : String(value))} contentStyle={{backgroundColor: theme === 'dark' ? '#2d3748' : '#fff', border: '1px solid #4a5568', fontSize: '12px'}}/>
 </PieChart>
                         </ResponsiveContainer>
                     </div>
