@@ -1,15 +1,27 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-body {
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
   font-family: 'Inter', sans-serif;
-  overscroll-behavior-y: none; /* Impede pull-to-refresh */
+  overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
+  background-color: #f3f4f6;
 }
 
 #root {
   height: 100dvh;
   width: 100vw;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Define color variables for theming */

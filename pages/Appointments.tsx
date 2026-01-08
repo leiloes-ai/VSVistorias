@@ -217,7 +217,7 @@ const Appointments: React.FC = () => {
   };
 
   const renderMobileCards = () => (
-    <div className="flex flex-col gap-4 md:hidden w-full pb-10">
+    <div className="flex flex-col gap-4 lg:hidden w-full pb-10">
         {filteredAppointments.map(app => (
             <div key={app.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-5 border-l-8 border-primary-500 w-full overflow-hidden">
                 <div className="flex justify-between items-center mb-4">
@@ -264,7 +264,7 @@ const Appointments: React.FC = () => {
   );
 
   const renderDesktopTable = () => (
-    <div className="overflow-x-auto hidden md:block">
+    <div className="overflow-x-auto hidden lg:block">
         <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
           <thead className="text-xs text-white uppercase bg-primary-600">
             <tr>

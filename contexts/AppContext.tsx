@@ -195,20 +195,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const isSandbox = window.location.protocol === 'blob:' || !host;
         
         console.log("PWA Diagnostic: Iniciando análise de ambiente...");
-        console.log(`PWA Diagnostic: Protocolo = ${window.location.protocol}`);
-        console.log(`PWA Diagnostic: Host = ${host || 'Sandbox'}`);
         
-        if (isSandbox) { console.warn("PWA Diagnostic: Ambiente de sandbox detectado. O PWA não pode ser instalado aqui."); return false; }
+        if (isSandbox) { console.warn("PWA Diagnostic: Ambiente de sandbox detectado (protocolo blob). O Service Worker e a instalação real do PWA são bloqueados por segurança em previews."); return false; }
         if (!isSecure) { console.warn("PWA Diagnostic: Site não seguro (faltando HTTPS). O PWA requer HTTPS para funcionar."); return false; }
         if (!('serviceWorker' in navigator)) { console.warn("PWA Diagnostic: Navegador não suporta Service Workers."); return false; }
-
-        try {
-            const regs = await navigator.serviceWorker.getRegistrations();
-            console.log(`PWA Diagnostic: ${regs.length} Service Workers encontrados.`);
-        } catch (e) {
-            console.error("PWA Diagnostic: Erro ao verificar registros de SW.");
-            return false;
-        }
 
         return true;
     };
@@ -217,10 +207,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const canRegister = await performPWADiagnosis();
         if (!canRegister) return;
 
-        navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' })
+        // Tenta registrar o SW usando o caminho relativo sem a barra inicial se necessário para o Vercel
+        const swPath = 'sw.js'; 
+        
+        navigator.serviceWorker.register(swPath, { scope: '/', type: 'module' })
             .then(registration => {
                 setSwRegistration(registration);
-                console.info("PWA Diagnostic: Service Worker registrado com sucesso.");
+                console.info("PWA Diagnostic: Service Worker registrado com sucesso em: " + swPath);
                 registration.onupdatefound = () => {
                     const installingWorker = registration.installing;
                     if (installingWorker) {
@@ -234,7 +227,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 };
             })
             .catch(error => {
-                console.error('PWA Diagnostic: Falha crítica no registro:', error.message);
+                console.error('PWA Diagnostic: Erro ao carregar Service Worker. Verifique se o arquivo sw.js existe na raiz.', error.message);
+                if (error.message.includes('404')) {
+                    console.error("PWA Diagnostic ERRO 404: O servidor não encontrou o arquivo sw.js. Certifique-se de que ele foi enviado para a raiz do site.");
+                }
             });
     };
 
@@ -245,7 +241,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     const handleBeforeInstallPrompt = (e: Event) => {
-      console.info("PWA Diagnostic: Evento 'beforeinstallprompt' recebido! O aplicativo pode ser instalado agora.");
+      console.info("PWA Diagnostic: Evento 'beforeinstallprompt' recebido com sucesso!");
       e.preventDefault();
       setInstallPromptEvent(e);
     };
@@ -406,13 +402,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const triggerInstallPrompt = async () => {
     if (!installPromptEvent) {
-        console.warn("PWA Diagnostic: Tentativa de instalação sem evento capturado. O botão não deveria estar visível.");
+        console.warn("PWA Diagnostic: Tentativa de instalação sem evento capturado.");
         return;
     }
     const promptEvent = installPromptEvent as any;
     promptEvent.prompt();
     const { outcome } = await promptEvent.userChoice;
-    console.info(`PWA Diagnostic: Escolha do usuário para instalação = ${outcome}`);
+    console.info(`PWA Diagnostic: Escolha do usuário = ${outcome}`);
     setInstallPromptEvent(null);
   };
 
