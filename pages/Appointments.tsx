@@ -379,27 +379,27 @@ const Appointments: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 p-2 sm:p-6 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-700/50 w-full overflow-hidden">
-        <div className="flex flex-col gap-6 mb-8">
+      <div className="bg-white dark:bg-gray-800 p-2 sm:p-5 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-700/50 w-full overflow-hidden">
+        <div className="flex flex-col gap-3 mb-4">
             <div className="relative w-full">
-                <input type="text" placeholder="Busque por placa, descrição, demanda, pátio ou observações..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} spellCheck="true" className="w-full pl-14 pr-6 py-4 text-base border-0 bg-gray-50 dark:bg-gray-900/50 rounded-2xl focus:ring-2 focus:ring-primary-500 shadow-inner dark:text-white placeholder-gray-400 font-medium" />
-                <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 w-6 h-6"><SearchIcon /></div>
+                <input type="text" placeholder="Busque por placa, descrição, demanda, pátio ou observações..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} spellCheck="true" className="w-full pl-11 pr-6 py-2.5 text-sm border-0 bg-gray-50 dark:bg-gray-900/50 rounded-xl focus:ring-2 focus:ring-primary-500 shadow-inner dark:text-white placeholder-gray-400 font-medium" />
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 w-5 h-5"><SearchIcon /></div>
             </div>
             
-            <div className="flex flex-col sm:flex-row gap-4">
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full sm:w-1/3 px-5 py-3.5 text-sm font-black border-0 bg-gray-50 dark:bg-gray-900/50 rounded-2xl focus:ring-2 focus:ring-primary-500 transition-all text-gray-700 dark:text-gray-200">
+            <div className="flex flex-col sm:flex-row gap-3">
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full sm:w-1/4 px-4 py-2.5 text-[11px] font-black border-0 bg-gray-50 dark:bg-gray-900/50 rounded-xl focus:ring-2 focus:ring-primary-500 transition-all text-gray-700 dark:text-gray-200">
                     <option value="Todos">TODOS OS STATUS</option>
                     {settings.statuses.filter(s => s.name !== 'Solicitado' || !isAdminOrMaster).map(s => <option key={s.id} value={s.name}>{s.name.toUpperCase()}</option>)}
                 </select>
                 
                 {isAdminOrMasterOrClient && (
-                    <div className="flex flex-grow items-center gap-4 px-5 py-3.5 bg-gray-50 dark:bg-gray-900/50 rounded-2xl overflow-hidden border-0">
-                        <input type="checkbox" id="searchByDate" checked={searchByDate} onChange={(e) => handleToggleSearchByDate(e.target.checked)} className="h-6 w-6 rounded-lg border-gray-300 text-primary-600 focus:ring-primary-500 flex-shrink-0 transition-all cursor-pointer"/>
-                        <label htmlFor="searchByDate" className="text-[10px] font-black text-gray-500 dark:text-gray-400 whitespace-nowrap cursor-pointer uppercase tracking-widest">Filtrar Período</label>
+                    <div className="flex flex-grow items-center gap-3 px-4 py-2.5 bg-gray-50 dark:bg-gray-900/50 rounded-xl overflow-hidden border-0">
+                        <input type="checkbox" id="searchByDate" checked={searchByDate} onChange={(e) => handleToggleSearchByDate(e.target.checked)} className="h-5 w-5 rounded-lg border-gray-300 text-primary-600 focus:ring-primary-500 flex-shrink-0 transition-all cursor-pointer"/>
+                        <label htmlFor="searchByDate" className="text-[9px] font-black text-gray-500 dark:text-gray-400 whitespace-nowrap cursor-pointer uppercase tracking-widest">Filtrar Período</label>
                         <div className={`flex items-center gap-2 flex-grow transition-all ${searchByDate ? 'opacity-100 translate-x-0' : 'opacity-20 translate-x-2 pointer-events-none'}`}>
-                            <input type="date" name="start" value={dateFilter.start} onChange={handleDateFilterChange} className="w-full bg-transparent border-none p-0 text-xs font-black focus:ring-0 text-gray-700 dark:text-gray-200" />
+                            <input type="date" name="start" value={dateFilter.start} onChange={handleDateFilterChange} className="w-full bg-transparent border-none p-0 text-[11px] font-black focus:ring-0 text-gray-700 dark:text-gray-200" />
                             <span className="text-gray-300 font-black">/</span>
-                            <input type="date" name="end" value={dateFilter.end} onChange={handleDateFilterChange} className="w-full bg-transparent border-none p-0 text-xs font-black focus:ring-0 text-gray-700 dark:text-gray-200" />
+                            <input type="date" name="end" value={dateFilter.end} onChange={handleDateFilterChange} className="w-full bg-transparent border-none p-0 text-[11px] font-black focus:ring-0 text-gray-700 dark:text-gray-200" />
                         </div>
                     </div>
                 )}
