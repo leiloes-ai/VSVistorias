@@ -31,7 +31,7 @@ const Appointments: React.FC = () => {
 
   const getInspectorName = (inspectorId: string) => {
     const inspector = users.find(u => u.id === inspectorId);
-    return inspector ? inspector.name : 'Não atribuído';
+    return inspector ? inspector.name : 'N/A';
   }
 
   const userAppointments = useMemo(() => {
@@ -220,55 +220,70 @@ const Appointments: React.FC = () => {
   };
 
   const renderMobileCards = () => (
-    <div className="flex flex-col gap-4 lg:hidden w-full pb-10">
+    <div className="flex flex-col gap-6 lg:hidden w-full pb-10">
         {filteredAppointments.map(app => (
-            <div key={app.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-5 border-l-8 border-primary-500 w-full overflow-hidden flex flex-col">
-                <div className="flex justify-between items-center mb-4 gap-2">
-                    <span className="text-[10px] font-bold font-mono text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-2 py-1 rounded-md uppercase whitespace-nowrap overflow-hidden text-ellipsis max-w-[50%]">
+            <div key={app.id} className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700/50 w-full overflow-hidden flex flex-col">
+                <div className="bg-gray-50 dark:bg-gray-700/50 px-5 py-3 flex justify-between items-center border-b border-gray-100 dark:border-gray-700/50">
+                    <span className="text-[10px] font-black font-mono text-primary-600 dark:text-primary-400 uppercase tracking-tighter">
                         {app.displayId || `#${app.stringId?.slice(-6).toUpperCase()}`}
                     </span>
-                    <span className="text-xs font-bold text-gray-400 whitespace-nowrap">{new Date(app.date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
-                </div>
-                <div className="mb-4">
-                    <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight break-all">{app.licensePlate}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 font-bold leading-tight break-words mt-1">{app.description}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-3 mb-4 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl text-xs">
-                    <div className="min-w-0">
-                        <span className="block text-[10px] uppercase font-bold text-gray-400 mb-0.5">Solicitante / Demanda</span>
-                        <span className="font-bold text-gray-700 dark:text-gray-200 block truncate">{app.requester}</span>
-                        <span className="text-[10px] text-primary-500 dark:text-primary-400 font-black block truncate">{app.demand}</span>
-                    </div>
-                    <div className="min-w-0">
-                        <span className="block text-[10px] uppercase font-bold text-gray-400 mb-0.5">Tipo / Pátio</span>
-                        <span className="font-bold text-gray-700 dark:text-gray-200 block truncate">{app.inspectionType}</span>
-                        <span className="text-[10px] text-gray-500 dark:text-gray-400 block truncate">{app.patio}</span>
-                    </div>
-                    <div className="col-span-2 pt-1 border-t border-gray-200 dark:border-gray-700 min-w-0">
-                        <span className="block text-[10px] uppercase font-bold text-gray-400 mb-0.5">Vistoriador</span>
-                        <span className="font-bold text-gray-700 dark:text-gray-200 block truncate">{getInspectorName(app.inspectorId)}</span>
-                    </div>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase">{new Date(app.date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
                 </div>
 
-                {app.notes && (
-                    <div className="mb-5 p-3 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-100 dark:border-amber-900/20">
-                        <span className="block text-[10px] uppercase font-black text-amber-600 dark:text-amber-500 mb-1 tracking-wider text-center">Observações do Agendamento</span>
-                        <p className="text-xs text-amber-800 dark:text-amber-200/80 italic break-words leading-relaxed">{app.notes}</p>
+                <div className="p-5 space-y-4">
+                    <div>
+                        <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter break-all">{app.licensePlate}</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 font-medium leading-relaxed mt-1">{app.description}</p>
                     </div>
-                )}
 
-                <div className="flex flex-col gap-3">
+                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100 dark:border-gray-700/50">
+                        <div className="space-y-3">
+                            <div>
+                                <span className="block text-[9px] uppercase font-black text-gray-400 mb-0.5">Solicitante</span>
+                                <span className="text-xs font-bold text-gray-800 dark:text-gray-200 break-words">{app.requester}</span>
+                            </div>
+                            <div>
+                                <span className="block text-[9px] uppercase font-black text-gray-400 mb-0.5">Demanda</span>
+                                <span className="text-xs font-black text-primary-500 uppercase break-words">{app.demand}</span>
+                            </div>
+                        </div>
+                        <div className="space-y-3 border-l border-gray-100 dark:border-gray-700/50 pl-4">
+                            <div>
+                                <span className="block text-[9px] uppercase font-black text-gray-400 mb-0.5">Tipo de Vistoria</span>
+                                <span className="text-xs font-bold text-gray-800 dark:text-gray-200 break-words">{app.inspectionType}</span>
+                            </div>
+                            <div>
+                                <span className="block text-[9px] uppercase font-black text-gray-400 mb-0.5">Pátio</span>
+                                <span className="text-xs font-bold text-gray-600 dark:text-gray-400 break-words">{app.patio}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-gray-100 dark:border-gray-700/50">
+                        <span className="block text-[9px] uppercase font-black text-gray-400 mb-0.5">Vistoriador</span>
+                        <span className="text-xs font-bold text-gray-800 dark:text-gray-200">{getInspectorName(app.inspectorId)}</span>
+                    </div>
+
+                    {app.notes && (
+                        <div className="p-3 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-900/20">
+                            <span className="block text-[9px] uppercase font-black text-amber-600 dark:text-amber-500 mb-1">Observações</span>
+                            <p className="text-xs text-amber-800 dark:text-amber-200 italic leading-snug">{app.notes}</p>
+                        </div>
+                    )}
+                </div>
+
+                <div className="p-5 pt-0 mt-auto space-y-3">
                     <select
                         value={app.status}
                         onChange={(e) => handleStatusChange(app, e.target.value as AppointmentStatus)}
                         disabled={!canUpdate}
-                        className={`w-full p-3 text-sm font-black rounded-xl border-0 focus:ring-2 focus:ring-primary-500 shadow-sm transition-all appearance-none text-center ${getStatusColor(app.status)}`}
+                        className={`w-full p-4 text-sm font-black rounded-2xl border-0 focus:ring-2 focus:ring-primary-500 shadow-sm transition-all appearance-none text-center ${getStatusColor(app.status)}`}
                     >
                         {settings.statuses.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                     </select>
                     <div className="flex gap-2">
-                        <button onClick={() => handleEditClick(app)} disabled={!canUpdate} className="flex-1 flex justify-center items-center gap-2 p-3 bg-primary-50 text-primary-600 rounded-xl dark:bg-primary-900/30 font-bold active:scale-95 transition-transform"><EditIcon /> <span className="hidden xs:inline">Editar</span></button>
-                        <button onClick={() => handleDeleteClick(app)} disabled={!canCreateOrDelete} className="flex-1 flex justify-center items-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl dark:bg-red-900/30 font-bold active:scale-95 transition-transform"><DeleteIcon /> <span className="hidden xs:inline">Excluir</span></button>
+                        <button onClick={() => handleEditClick(app)} disabled={!canUpdate} className="flex-1 flex justify-center items-center gap-2 p-4 bg-primary-50 text-primary-600 rounded-2xl dark:bg-primary-900/30 font-black text-xs transition-transform active:scale-95"><EditIcon /> EDITAR</button>
+                        <button onClick={() => handleDeleteClick(app)} disabled={!canCreateOrDelete} className="flex-1 flex justify-center items-center gap-2 p-4 bg-red-50 text-red-600 rounded-2xl dark:bg-red-900/30 font-black text-xs transition-transform active:scale-95"><DeleteIcon /> EXCLUIR</button>
                     </div>
                 </div>
             </div>
@@ -277,55 +292,60 @@ const Appointments: React.FC = () => {
   );
 
   const renderDesktopTable = () => (
-    <div className="overflow-x-auto hidden lg:block">
-        <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-          <thead className="text-xs text-white uppercase bg-primary-600">
+    <div className="overflow-x-hidden hidden lg:block rounded-xl border border-gray-100 dark:border-gray-700/50">
+        <table className="w-full text-[10px] text-left border-collapse table-fixed">
+          <thead className="text-[9px] text-white uppercase bg-primary-600 sticky top-0 z-10">
             <tr>
-              <th className="px-2 py-3">Id</th>
-              <th className="px-2 py-3">Data</th>
-              <th className="px-2 py-3">Placa / Descrição</th>
-              <th className="px-2 py-3">Solicitante / Demanda</th>
-              <th className="px-2 py-3">Tipo / Pátio</th>
-              <th className="px-2 py-3">Observações</th>
-              <th className="px-2 py-3">Vistoriador</th>
-              <th className="px-2 py-3">Status</th>
-              <th className="px-2 py-3 text-center">Ações</th>
+              <th className="p-1 font-black w-[4%]">ID</th>
+              <th className="p-1 font-black w-[6%]">Data</th>
+              <th className="p-1 font-black w-[7%]">Placa</th>
+              <th className="p-1 font-black w-[11%]">Descrição</th>
+              <th className="p-1 font-black w-[9%]">Solicitante</th>
+              <th className="p-1 font-black w-[7%]">Demanda</th>
+              <th className="p-1 font-black w-[13%]">Tipo de Vistoria</th>
+              <th className="p-1 font-black w-[11%]">Pátio</th>
+              <th className="p-1 font-black w-[9%]">Obs.</th>
+              <th className="p-1 font-black w-[11%]">Vistoriador</th>
+              <th className="p-1 font-black w-[8%]">Status</th>
+              <th className="p-1 font-black text-center w-[4%]">Ações</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
             {filteredAppointments.map(app => (
-              <tr key={app.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                <td className="px-2 py-2 font-mono text-[11px]">{app.displayId || `#${app.stringId?.slice(-6).toUpperCase()}`}</td>
-                <td className="px-2 py-2 whitespace-nowrap">{new Date(app.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
-                <td className="px-2 py-2">
-                    <div className="font-black text-gray-900 dark:text-white">{app.licensePlate}</div>
-                    <div className="text-[11px] break-words max-w-[200px] text-gray-500 dark:text-gray-400 leading-tight">{app.description}</div>
+              <tr key={app.id} className="bg-white dark:bg-gray-800 hover:bg-primary-50/20 dark:hover:bg-primary-900/10 transition-colors group">
+                <td className="p-1 font-mono text-[8px] text-gray-400 font-bold truncate" title={app.displayId || `#${app.stringId?.slice(-6).toUpperCase()}`}>{app.displayId || `#${app.stringId?.slice(-4).toUpperCase()}`}</td>
+                <td className="p-1 whitespace-nowrap text-gray-600 dark:text-gray-400 font-bold">{new Date(app.date + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}</td>
+                <td className="p-1">
+                    <span className="font-black text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded text-[9px] block text-center truncate">{app.licensePlate}</span>
                 </td>
-                <td className="px-2 py-2">
-                    <div className="font-semibold text-gray-800 dark:text-gray-200">{app.requester}</div>
-                    <div className="text-[10px] text-primary-500 uppercase font-black">{app.demand}</div>
+                <td className="p-1">
+                    <div className="font-medium text-gray-600 dark:text-gray-300 truncate" title={app.description}>{app.description}</div>
                 </td>
-                <td className="px-2 py-2">
-                    <div className="font-semibold text-gray-800 dark:text-gray-200">{app.inspectionType}</div>
-                    <div className="text-[10px] text-gray-500">{app.patio}</div>
+                <td className="p-1 font-bold text-gray-700 dark:text-gray-200 truncate" title={app.requester}>{app.requester}</td>
+                <td className="p-1">
+                    <div className="font-bold text-gray-600 dark:text-gray-400 uppercase truncate" title={app.demand}>{app.demand}</div>
                 </td>
-                <td className="px-2 py-2">
-                    <div className="text-[11px] break-words max-w-[200px] italic text-gray-500 dark:text-gray-400 leading-tight">{app.notes || '---'}</div>
+                <td className="p-1 text-gray-700 dark:text-gray-200 truncate font-bold" title={app.inspectionType}>{app.inspectionType}</td>
+                <td className="p-1 text-gray-500 italic truncate" title={app.patio}>{app.patio}</td>
+                <td className="p-1">
+                    <div className="italic text-amber-600 dark:text-amber-400 truncate text-[9px]" title={app.notes || 'Sem observações'}>{app.notes || '---'}</div>
                 </td>
-                <td className="px-2 py-2 whitespace-nowrap">{getInspectorName(app.inspectorId)}</td>
-                <td className="px-2 py-2 min-w-[120px]">
+                <td className="p-1 whitespace-nowrap font-bold text-gray-700 dark:text-gray-300 truncate text-[9px]" title={getInspectorName(app.inspectorId)}>{getInspectorName(app.inspectorId)}</td>
+                <td className="p-1">
                   <select
                       value={app.status}
                       onChange={(e) => handleStatusChange(app, e.target.value as AppointmentStatus)}
                       disabled={!canUpdate}
-                      className={`w-full p-1.5 text-[11px] font-black rounded-md border-0 focus:ring-2 focus:ring-primary-500 ${getStatusColor(app.status)}`}
+                      className={`w-full p-0.5 text-[8px] font-black rounded border-0 focus:ring-1 focus:ring-primary-500 cursor-pointer shadow-sm appearance-none text-center truncate ${getStatusColor(app.status)}`}
                   >
-                      {settings.statuses.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                      {settings.statuses.map(s => <option key={s.id} value={s.name}>{s.name.toUpperCase()}</option>)}
                   </select>
                 </td>
-                <td className="px-2 py-2 flex justify-center gap-2">
-                  <button onClick={() => handleEditClick(app)} disabled={!canUpdate} className="text-primary-500 hover:scale-110 transition-transform"><EditIcon /></button>
-                  <button onClick={() => handleDeleteClick(app)} disabled={!canCreateOrDelete} className="text-red-500 hover:scale-110 transition-transform"><DeleteIcon /></button>
+                <td className="p-1">
+                  <div className="flex justify-center gap-1">
+                    <button onClick={() => handleEditClick(app)} disabled={!canUpdate} className="text-primary-500 hover:scale-110 transition-transform" title="Editar"><EditIcon /></button>
+                    <button onClick={() => handleDeleteClick(app)} disabled={!canCreateOrDelete} className="text-red-500 hover:scale-110 transition-transform" title="Excluir"><DeleteIcon /></button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -336,73 +356,71 @@ const Appointments: React.FC = () => {
 
   return (
     <>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-6 gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-8 gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-black text-gray-800 dark:text-white">Agendamentos</h1>
-            {!isOnline && <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-bold rounded-md animate-pulse">OFFLINE</span>}
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white tracking-tighter">Agendamentos</h1>
+            {!isOnline && <span className="px-3 py-1 bg-orange-100 text-orange-700 text-[10px] font-black rounded-full animate-pulse uppercase tracking-widest">Offline</span>}
           </div>
-          <p className="mt-1 text-xs sm:text-sm text-gray-600 dark:text-gray-400">Gerencie as vistorias agendadas com todos os detalhes.</p>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 font-medium italic">Painel de controle técnico e operacional das vistorias.</p>
         </div>
-        <div className="flex flex-col items-stretch sm:items-end gap-2 w-full sm:w-auto">
+        <div className="flex flex-col items-stretch sm:items-end gap-3 w-full sm:w-auto">
           {isAdminOrMasterOrClient && (
               <div className="flex justify-start sm:justify-end gap-2 overflow-x-auto no-scrollbar pb-1">
-                  <button onClick={handleExportExcel} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-green-600 text-white rounded-xl shadow-md hover:bg-green-700 transition-colors whitespace-nowrap font-bold"><DownloadIcon /> Excel</button>
-                  <button onClick={handleExportPdf} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-red-600 text-white rounded-xl shadow-md hover:bg-red-700 transition-colors whitespace-nowrap font-bold"><DownloadIcon /> PDF</button>
+                  <button onClick={handleExportExcel} className="flex items-center gap-1.5 px-4 py-2.5 text-xs bg-emerald-600 text-white rounded-2xl shadow-lg hover:bg-emerald-700 transition-all font-black uppercase tracking-tighter"><DownloadIcon /> Excel</button>
+                  <button onClick={handleExportPdf} className="flex items-center gap-1.5 px-4 py-2.5 text-xs bg-rose-600 text-white rounded-2xl shadow-lg hover:bg-rose-700 transition-all font-black uppercase tracking-tighter"><DownloadIcon /> PDF</button>
               </div>
           )}
           {canCreateOrDelete && (
-            <button onClick={() => openFormModal(null)} className="flex items-center justify-center gap-2 px-5 py-3 bg-primary-600 text-white rounded-2xl shadow-xl hover:bg-primary-700 transition-all font-black text-sm active:scale-95">
-              <AddIcon /> Novo Agendamento
+            <button onClick={() => openFormModal(null)} className="flex items-center justify-center gap-2 px-6 py-3.5 bg-primary-600 text-white rounded-2xl shadow-xl hover:bg-primary-700 transition-all font-black text-sm active:scale-95 group">
+              <AddIcon /> <span className="group-hover:translate-x-1 transition-transform">NOVO AGENDAMENTO</span>
             </button>
           )}
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 p-2 sm:p-5 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700/50 w-full overflow-hidden">
-        <div className="flex flex-col gap-4 mb-6">
+      <div className="bg-white dark:bg-gray-800 p-2 sm:p-6 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-700/50 w-full overflow-hidden">
+        <div className="flex flex-col gap-6 mb-8">
             <div className="relative w-full">
-                <input type="text" placeholder="Buscar por placa, solicitante, demanda, observação..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} spellCheck="true" className="w-full pl-11 pr-4 py-3 text-base border border-gray-300 dark:border-gray-600 rounded-2xl bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-inner" />
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><SearchIcon /></div>
+                <input type="text" placeholder="Busque por placa, descrição, demanda, pátio ou observações..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} spellCheck="true" className="w-full pl-14 pr-6 py-4 text-base border-0 bg-gray-50 dark:bg-gray-900/50 rounded-2xl focus:ring-2 focus:ring-primary-500 shadow-inner dark:text-white placeholder-gray-400 font-medium" />
+                <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 w-6 h-6"><SearchIcon /></div>
             </div>
             
-            <div className="flex flex-col gap-3">
-                <div className="flex flex-col sm:flex-row gap-3">
-                    <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full sm:w-1/3 px-4 py-3 text-sm font-bold border border-gray-300 dark:border-gray-600 rounded-2xl bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-primary-500">
-                        <option value="Todos">Todos os Status</option>
-                        {settings.statuses.filter(s => s.name !== 'Solicitado' || !isAdminOrMaster).map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                    </select>
-                    
-                    {isAdminOrMasterOrClient && (
-                        <div className="flex flex-grow items-center gap-3 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-2xl bg-gray-50 dark:bg-gray-700 overflow-hidden">
-                            <input type="checkbox" id="searchByDate" checked={searchByDate} onChange={(e) => handleToggleSearchByDate(e.target.checked)} className="h-5 w-5 rounded-md border-gray-300 text-primary-600 focus:ring-primary-500 flex-shrink-0"/>
-                            <label htmlFor="searchByDate" className="text-xs font-black text-gray-700 dark:text-gray-300 whitespace-nowrap">POR PERÍODO</label>
-                            <div className={`flex items-center gap-2 flex-grow transition-opacity ${searchByDate ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
-                                <input type="date" name="start" value={dateFilter.start} onChange={handleDateFilterChange} className="w-full bg-transparent border-none p-0 text-[10px] sm:text-xs font-bold focus:ring-0 text-gray-700 dark:text-gray-200" />
-                                <span className="text-gray-400 font-bold">/</span>
-                                <input type="date" name="end" value={dateFilter.end} onChange={handleDateFilterChange} className="w-full bg-transparent border-none p-0 text-[10px] sm:text-xs font-bold focus:ring-0 text-gray-700 dark:text-gray-200" />
-                            </div>
+            <div className="flex flex-col sm:flex-row gap-4">
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full sm:w-1/3 px-5 py-3.5 text-sm font-black border-0 bg-gray-50 dark:bg-gray-900/50 rounded-2xl focus:ring-2 focus:ring-primary-500 transition-all text-gray-700 dark:text-gray-200">
+                    <option value="Todos">TODOS OS STATUS</option>
+                    {settings.statuses.filter(s => s.name !== 'Solicitado' || !isAdminOrMaster).map(s => <option key={s.id} value={s.name}>{s.name.toUpperCase()}</option>)}
+                </select>
+                
+                {isAdminOrMasterOrClient && (
+                    <div className="flex flex-grow items-center gap-4 px-5 py-3.5 bg-gray-50 dark:bg-gray-900/50 rounded-2xl overflow-hidden border-0">
+                        <input type="checkbox" id="searchByDate" checked={searchByDate} onChange={(e) => handleToggleSearchByDate(e.target.checked)} className="h-6 w-6 rounded-lg border-gray-300 text-primary-600 focus:ring-primary-500 flex-shrink-0 transition-all cursor-pointer"/>
+                        <label htmlFor="searchByDate" className="text-[10px] font-black text-gray-500 dark:text-gray-400 whitespace-nowrap cursor-pointer uppercase tracking-widest">Filtrar Período</label>
+                        <div className={`flex items-center gap-2 flex-grow transition-all ${searchByDate ? 'opacity-100 translate-x-0' : 'opacity-20 translate-x-2 pointer-events-none'}`}>
+                            <input type="date" name="start" value={dateFilter.start} onChange={handleDateFilterChange} className="w-full bg-transparent border-none p-0 text-xs font-black focus:ring-0 text-gray-700 dark:text-gray-200" />
+                            <span className="text-gray-300 font-black">/</span>
+                            <input type="date" name="end" value={dateFilter.end} onChange={handleDateFilterChange} className="w-full bg-transparent border-none p-0 text-xs font-black focus:ring-0 text-gray-700 dark:text-gray-200" />
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
         </div>
 
-        {loading ? <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"></div></div> : (
-            <div className="w-full">
+        {loading ? <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-4 border-primary-600 border-t-transparent shadow-xl"></div></div> : (
+            <div className="w-full min-w-0">
                 {renderDesktopTable()}
                 {renderMobileCards()}
-                {filteredAppointments.length === 0 && <p className="text-center py-12 text-gray-400 font-medium italic">Nenhum agendamento encontrado.</p>}
+                {filteredAppointments.length === 0 && <div className="text-center py-32"><div className="mx-auto w-16 h-16 text-gray-200 mb-4"><SearchIcon /></div><p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Nenhum agendamento localizado com estes critérios.</p></div>}
             </div>
         )}
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={selectedAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}>
+      <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={selectedAppointment ? 'Editar Detalhes da Vistoria' : 'Cadastrar Novo Agendamento'}>
         <AppointmentForm appointment={selectedAppointment} onSave={handleCloseModal} />
       </Modal>
 
-      <ConfirmationDialog isOpen={isDeleteConfirmOpen} onClose={() => setIsDeleteConfirmOpen(false)} onConfirm={confirmDelete} title="Confirmar Exclusão" message="Tem certeza que deseja excluir este agendamento?"/>
-      <ConfirmationDialog isOpen={isEditConfirmOpen} onClose={() => setIsEditConfirmOpen(false)} onConfirm={confirmEdit} title="Editar Agendamento" message="Deseja prosseguir com a edição?" confirmButtonColor="blue" />
+      <ConfirmationDialog isOpen={isDeleteConfirmOpen} onClose={() => setIsDeleteConfirmOpen(false)} onConfirm={confirmDelete} title="Confirmar Exclusão" message="Atenção: A remoção deste agendamento é definitiva. Deseja prosseguir?"/>
+      <ConfirmationDialog isOpen={isEditConfirmOpen} onClose={() => setIsEditConfirmOpen(false)} onConfirm={confirmEdit} title="Alterar Informações" message="Deseja abrir o formulário de edição para este agendamento?" confirmButtonColor="blue" />
     </>
   );
 };
