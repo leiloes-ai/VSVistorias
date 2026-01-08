@@ -4,24 +4,28 @@ import App from './App.tsx';
 import { AppProvider } from './contexts/AppContext.tsx';
 
 // --- Global Debug Logger ---
-// Intercepta todas as mensagens do console desde o início para depuração.
-// As mensagens são armazenadas em um buffer global.
 (window as any)._debugLogs = [];
 const _originalConsole = { ...console };
 const _logLevels: (keyof Console)[] = ['log', 'warn', 'error', 'info', 'debug'];
 
-// Helper para evitar erros de referência circular no JSON.stringify
 const getCircularReplacer = () => {
     const seen = new WeakSet();
     return (key: string, value: any) => {
         if (typeof value === "object" && value !== null) {
-            if (seen.has(value)) {
-                return "[Circular]";
-            }
+            if (seen.has(value)) return "[Circular]";
             seen.add(value);
         }
         return value;
     };
+};
+
+const pushToLog = (level: string, message: string) => {
+    if ((window as any)._debugLogs.length > 500) (window as any)._debugLogs.shift();
+    (window as any)._debugLogs.push({
+        level,
+        message,
+        timestamp: new Date().toLocaleTimeString()
+    });
 };
 
 _logLevels.forEach(level => {
@@ -31,36 +35,41 @@ _logLevels.forEach(level => {
       originalMethod.apply(console, args);
       try {
         const message = args.map(arg => {
-          if (arg instanceof Error) {
-            return `Error: ${arg.message}\n${arg.stack}`;
-          }
-          return typeof arg === 'object' ? JSON.stringify(arg, getCircularReplacer(), 2) : String(arg);
+          if (arg instanceof Error) return `Error: ${arg.message}\n${arg.stack}`;
+          if (typeof arg === 'string') return arg;
+          return JSON.stringify(arg, getCircularReplacer(), 2);
         }).join(' ');
-        
-        // Limita o buffer para evitar consumo excessivo de memória
-        if ((window as any)._debugLogs.length > 200) {
-            (window as any)._debugLogs.shift();
-        }
-        
-        (window as any)._debugLogs.push({
-          level,
-          message,
-          timestamp: new Date().toLocaleTimeString()
-        });
+        pushToLog(level, message);
       } catch (e) {
-        _originalConsole.error("Erro ao registrar no buffer de debug global:", e);
+        _originalConsole.error("Erro no logger:", e);
       }
     };
   }
 });
-console.log("Logger de debug global inicializado.");
 
+// Listener para logs vindos do Service Worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'SW_LOG') {
+            (console as any)[event.data.level](event.data.message);
+        }
+    });
+}
+
+window.onerror = (msg, url, lineNo, columnNo, error) => {
+    console.error(`[Fatal] ${msg} @ ${url}:${lineNo}`, error);
+    return false;
+};
+
+window.onunhandledrejection = (event) => {
+    console.error(`[Promise Rejected] ${event.reason}`);
+};
+
+console.log("Terminal Iniciado. Monitorando ambiente...");
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
-  // Este erro será capturado pelo terminal de debug.
-  console.error("Erro Fatal: Não foi possível encontrar o elemento 'root' para montar a aplicação React.");
-  throw new Error("Could not find root element to mount to");
+  throw new Error("Could not find root element");
 }
 
 const root = ReactDOM.createRoot(rootElement);

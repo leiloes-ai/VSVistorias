@@ -1,31 +1,18 @@
-// Service Worker Version: Incrementar esta versão acionará o evento 'install'
-// e atualizará o cache, garantindo que os usuários recebam a versão mais recente do aplicativo.
-const VERSION = 'v1.11.0';
-
-// Cache Name: Um nome exclusivo para o armazenamento de cache do aplicativo. Usar a versão
-// garante que novos service workers usem um novo cache, evitando conflitos.
+// Service Worker Version: v1.17.0
+const VERSION = 'v1.17.0';
 const CACHE_NAME = `gestorpro-cache-${VERSION}`;
 
-// App Shell: Uma lista de arquivos essenciais para a funcionalidade básica do aplicativo.
-// O cache desses arquivos permite que o aplicativo carregue instantaneamente e funcione offline.
 const APP_SHELL_URLS = [
   '/',
   '/index.html',
   '/index.css',
   '/index.tsx',
-  '/icon-192.png',
-  '/icon-512.png',
   '/manifest.json',
-  'https://cdn.tailwindcss.com',
-  'https://esm.sh/react@^18.2.0',
-  'https://esm.sh/react-dom@^18.2.0',
-  'https://esm.sh/recharts@2.12.7',
-  'https://esm.sh/xlsx@0.18.5',
-  'https://esm.sh/jspdf@2.5.1',
-  'https://esm.sh/jspdf-autotable@3.8.2'
+  '/icon-192.png',
+  '/icon-512.png'
 ];
 
-// --- Configuração do Firebase Cloud Messaging (FCM) ---
+// --- Configuração do Firebase Messaging ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 import { getMessaging, onBackgroundMessage } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-sw.js";
 
@@ -42,89 +29,73 @@ const firebaseApp = initializeApp(firebaseConfig);
 const messaging = getMessaging(firebaseApp);
 
 onBackgroundMessage(messaging, (payload) => {
-  console.log('[Service Worker] Recebeu notificação push em segundo plano:', payload);
   const notificationTitle = payload.notification?.title || 'GestorPRO';
   const notificationOptions = {
-    body: payload.notification?.body || 'Você tem uma nova notificação.',
+    body: payload.notification?.body || 'Nova atualização no sistema.',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
-    vibrate: [200, 100, 200]
+    vibrate: [100, 50, 100]
   };
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
-// Evento INSTALL
+// INSTALL: Cache imediato do App Shell
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(APP_SHELL_URLS);
     })
   );
-  self.skipWaiting();
 });
 
-// Evento ACTIVATE
+// ACTIVATE: Limpeza de caches velhos
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    Promise.all([
-      self.clients.claim(),
-      caches.keys().then((cacheNames) => {
-        return Promise.all(
-          cacheNames
-            .filter((cacheName) => cacheName.startsWith('gestorpro-cache-') && cacheName !== CACHE_NAME)
-            .map((cacheName) => caches.delete(cacheName))
-        );
-      })
-    ])
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames
+          .filter((name) => name.startsWith('gestorpro-cache-') && name !== CACHE_NAME)
+          .map((name) => caches.delete(name))
+      );
+    }).then(() => self.clients.claim())
   );
 });
 
-// Listener de Mensagem
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
 });
 
-// Estratégia Stale-While-Revalidate
-async function staleWhileRevalidate(event) {
-    if (event.request.method !== 'GET' || event.request.url.startsWith('chrome-extension://')) {
-        return fetch(event.request);
-    }
-    const cache = await caches.open(CACHE_NAME);
-    const cachedResponse = await cache.match(event.request);
-    const fetchPromise = fetch(event.request).then(networkResponse => {
-        if (networkResponse && networkResponse.status === 200) {
-            cache.put(event.request, networkResponse.clone());
-        }
-        return networkResponse;
-    }).catch(() => {});
-    return cachedResponse || fetchPromise;
-}
-
-// Evento FETCH
+// FETCH: Estratégia Stale-While-Revalidate para Shell e Cache-First para imagens
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  const isFirebaseRequest = request.url.includes('firestore.googleapis.com') || request.url.includes('firebaseinstallations.googleapis.com');
-  if (request.method !== 'GET' || isFirebaseRequest) {
+  const url = new URL(request.url);
+
+  // Ignorar chamadas do Firebase e APIs externas
+  if (url.hostname.includes('googleapis.com') || url.hostname.includes('firebaseapp.com') || url.hostname.includes('gstatic.com')) {
     return;
   }
-  event.respondWith(staleWhileRevalidate(event));
-});
 
-// Evento NOTIFICATION CLICK
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if (client.url === '/' && 'focus' in client) {
-          return client.focus();
+  if (request.method !== 'GET') return;
+
+  event.respondWith(
+    caches.match(request).then((cachedResponse) => {
+      const fetchPromise = fetch(request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseToCache);
+          });
         }
-      }
-      if (clients.openWindow) {
-        return clients.openWindow('/');
-      }
+        return networkResponse;
+      }).catch(() => {
+          // Silenciosamente falha se estiver offline e sem cache
+      });
+
+      // Retorna o cache imediatamente se houver, ou espera a rede
+      return cachedResponse || fetchPromise;
     })
   );
 });

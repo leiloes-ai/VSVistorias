@@ -25,6 +25,7 @@ interface AppContextType {
   logo: string | null;
   updateLogo: (logo: string | null) => Promise<void>;
   loading: boolean;
+  isOnline: boolean;
   notification: string | null;
   clearNotification: () => void;
   triggerNotification: (message?: string) => void;
@@ -107,7 +108,7 @@ const initialPageNotifications: Record<Page, boolean> = {
 export const AppContext = createContext<AppContextType>({
   theme: 'light', toggleTheme: () => {}, setTheme: () => {}, themePalette: 'blue', setThemePalette: () => {},
   textPalette: 'gray', setTextPalette: () => {}, user: null, users: [], appointments: [], pendencies: [], financials: [], accounts: [], thirdParties: [],
-  settings: initialSettings, logo: null, updateLogo: async () => {}, loading: true, notification: null,
+  settings: initialSettings, logo: null, updateLogo: async () => {}, loading: true, isOnline: true, notification: null,
   clearNotification: () => {}, triggerNotification: () => {}, pageNotifications: initialPageNotifications, clearPageNotification: () => {},
   installPromptEvent: null, triggerInstallPrompt: () => {}, isUpdateAvailable: false, updateApp: () => {}, isStandalone: false,
   login: async () => ({ success: false, message: 'Função de login não implementada.' }), logout: () => {},
@@ -140,6 +141,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [thirdParties, setThirdParties] = useState<ThirdParty[]>([]);
   const [settings, setSettings] = useState<Settings>(initialSettings);
   const [loading, setLoading] = useState(true);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [activePage, setActivePage] = useState<Page>('Agendamentos');
   const [activeFinancialPage, setActiveFinancialPage] = useState<FinancialPage>('Dashboard');
   const [notification, setNotification] = useState<string | null>(null);
@@ -169,21 +171,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => { document.documentElement.dataset.palette = themePalette; localStorage.setItem('themePalette', themePalette); }, [themePalette]);
   useEffect(() => { document.documentElement.dataset.textPalette = textPalette; localStorage.setItem('textPalette', textPalette); }, [textPalette]);
 
+  // Monitoramento de Conectividade
+  useEffect(() => {
+    const handleOnline = () => { setIsOnline(true); console.info("Sistema: Conectado à internet."); };
+    const handleOffline = () => { setIsOnline(false); console.warn("Sistema: Modo offline ativado."); };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); };
+  }, []);
+
   useEffect(() => {
     const checkStandalone = () => {
-        setIsStandalone(window.matchMedia('(display-mode: standalone)').matches);
+        setIsStandalone(window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone || false);
     };
     checkStandalone();
     window.matchMedia('(display-mode: standalone)').addEventListener('change', checkStandalone);
 
-    if ('serviceWorker' in navigator) {
-        const swUrl = '/sw.js';
-        // REGISTRO CRÍTICO: Adicionado { type: 'module' } para suportar os imports no sw.js
-        navigator.serviceWorker.register(swUrl, { scope: '/', type: 'module' })
-            .then(registration => {
-                console.log('Service Worker registrado com sucesso:', registration.scope);
-                setSwRegistration(registration);
+    const performPWADiagnosis = async () => {
+        const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
+        const host = window.location.host;
+        const isSandbox = window.location.protocol === 'blob:' || !host;
+        
+        if (isSandbox) return false;
+        if (!isSecure) return false;
+        if (!('serviceWorker' in navigator)) return false;
 
+        try {
+            await navigator.serviceWorker.getRegistrations();
+        } catch (e) {
+            return false;
+        }
+
+        return true;
+    };
+
+    const registerSW = async () => {
+        const canRegister = await performPWADiagnosis();
+        if (!canRegister) return;
+
+        navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' })
+            .then(registration => {
+                setSwRegistration(registration);
                 registration.onupdatefound = () => {
                     const installingWorker = registration.installing;
                     if (installingWorker) {
@@ -195,34 +223,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     }
                 };
             })
-            .catch(error => console.error('Erro ao registrar o Service Worker:', error));
+            .catch(error => {
+                console.error('PWA: Falha no registro:', error.message);
+            });
+    };
 
-        let refreshing: boolean;
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-            if (refreshing) return;
-            window.location.reload();
-            refreshing = true;
-        });
+    if (document.readyState === 'complete') {
+        registerSW();
+    } else {
+        window.addEventListener('load', registerSW);
     }
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setInstallPromptEvent(e);
-      console.log("Evento 'beforeinstallprompt' capturado.");
     };
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    const handleAppInstalled = () => {
-        console.log('PWA instalado!');
-        setInstallPromptEvent(null);
-        setIsStandalone(true);
-    };
-    window.addEventListener('appinstalled', handleAppInstalled);
-
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
       window.matchMedia('(display-mode: standalone)').removeEventListener('change', checkStandalone);
+      window.removeEventListener('load', registerSW);
     };
   }, []);
   
@@ -477,7 +498,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   return (
     <AppContext.Provider value={{ 
         theme, toggleTheme, setTheme, themePalette, setThemePalette, textPalette, setTextPalette,
-        user, users, appointments, pendencies, financials, accounts, thirdParties, settings, logo: settings.logoUrl || null, updateLogo, loading,
+        user, users, appointments, pendencies, financials, accounts, thirdParties, settings, logo: settings.logoUrl || null, updateLogo, loading, isOnline,
         notification, clearNotification, triggerNotification, pageNotifications, clearPageNotification,
         installPromptEvent, triggerInstallPrompt, isUpdateAvailable, updateApp, isStandalone,
         login, logout, sendPasswordReset,

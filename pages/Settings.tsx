@@ -60,7 +60,6 @@ const Settings: React.FC = () => {
     const [localSettings, setLocalSettings] = useState<SettingsType>(settings);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isTerminalOpen, setIsTerminalOpen] = useState(false);
-    const [showManualInstructions, setShowManualInstructions] = useState(false);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -155,14 +154,6 @@ const Settings: React.FC = () => {
             reader.readAsDataURL(file);
         }
     };
-
-    const handleInstallClick = () => {
-        if (installPromptEvent) {
-            triggerInstallPrompt();
-        } else {
-            setShowManualInstructions(!showManualInstructions);
-        }
-    };
     
     const renderGeneralSettings = () => (
         <div className="space-y-8">
@@ -202,7 +193,7 @@ const Settings: React.FC = () => {
         <div className="space-y-6">
             <div>
                 <label htmlFor="appName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome da Aplicação</label>
-                <input type="text" id="appName" value={localSettings.appName} onChange={(e) => setLocalSettings(prev => ({ ...prev, appName: e.target.value }))} disabled={!canEdit} className="mt-1 block w-full max-w-md px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 disabled:opacity-50" />
+                <input type="text" id="appName" value={localSettings.appName} onChange={(e) => setLocalSettings(prev => ({ ...prev, appName: e.target.value }))} disabled={!canEdit} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 disabled:opacity-50" />
             </div>
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Logo da Aplicação</label>
@@ -262,9 +253,6 @@ const Settings: React.FC = () => {
     );
     
     const renderApplicationSettings = () => {
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-        const isAndroid = /Android/.test(navigator.userAgent);
-
         return (
             <div className="space-y-6">
                 <div className="bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800 p-6 rounded-2xl">
@@ -272,85 +260,34 @@ const Settings: React.FC = () => {
                         <div className="h-16 w-16 bg-primary-100 dark:bg-primary-800 rounded-2xl flex items-center justify-center text-primary-600 dark:text-primary-400 mb-4">
                             <InstallIcon />
                         </div>
-                        <h3 className="text-xl font-bold text-gray-800 dark:text-white">Instalar o {settings.appName}</h3>
+                        <h3 className="text-xl font-bold text-gray-800 dark:text-white">Gerenciar Aplicativo</h3>
                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 max-w-xs">
-                            Tenha acesso rápido direto da sua tela inicial e trabalhe offline com mais velocidade.
+                            {isStandalone ? 'O aplicativo já está instalado e rodando em modo nativo.' : 'Clique no botão abaixo para instalar o sistema como um aplicativo no seu dispositivo.'}
                         </p>
                         
-                        <div className="mt-6 w-full">
+                        <div className="mt-6 w-full max-w-sm">
                             {isStandalone ? (
                                 <div className="flex flex-col items-center gap-2 text-green-600 dark:text-green-400 font-bold p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-green-100 dark:border-green-900/30">
                                    <CheckCircleIcon />
-                                   <span>Aplicativo Instalado</span>
-                                   <p className="text-xs font-normal text-gray-500">Você já está usando a versão de alto desempenho.</p>
+                                   <span>Sistema Instalado</span>
                                 </div>
                             ) : (
                                 <button
-                                    onClick={handleInstallClick}
-                                    className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary-600 text-white rounded-xl shadow-lg hover:bg-primary-700 transition-all transform active:scale-95 font-bold text-lg"
+                                    onClick={triggerInstallPrompt}
+                                    disabled={!installPromptEvent}
+                                    className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary-600 text-white rounded-xl shadow-lg hover:bg-primary-700 transition-all transform active:scale-95 font-bold text-lg disabled:opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed"
                                 >
                                     <InstallIcon />
-                                    {installPromptEvent ? 'Instalar Agora' : 'Como Instalar no Celular'}
+                                    {installPromptEvent ? 'Instalar Agora' : 'Aguardando Navegador...'}
                                 </button>
                             )}
                         </div>
+                        {!isStandalone && !installPromptEvent && (
+                            <p className="mt-4 text-xs text-gray-400 italic">
+                                Nota: Se o botão não estiver ativo, use o menu "Adicionar à tela de início" do seu navegador.
+                            </p>
+                        )}
                     </div>
-
-                    {showManualInstructions && !isStandalone && (
-                        <div className="mt-8 pt-8 border-t border-primary-100 dark:border-primary-800 animate-fade-in">
-                            <h4 className="font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-                                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-200 dark:bg-primary-800 text-xs">!</span>
-                                Guia de Instalação Manual
-                            </h4>
-                            
-                            {isIOS ? (
-                                <div className="space-y-4">
-                                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">No iPhone (Safari):</p>
-                                    <div className="space-y-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm text-lg">📤</div>
-                                            <p className="text-sm text-gray-600 dark:text-gray-400">1. Toque no ícone de <strong>Compartilhar</strong> (quadrado com seta para cima).</p>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm text-lg">➕</div>
-                                            <p className="text-sm text-gray-600 dark:text-gray-400">2. Role para baixo e selecione <strong>"Adicionar à Tela de Início"</strong>.</p>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm text-lg">✅</div>
-                                            <p className="text-sm text-gray-600 dark:text-gray-400">3. Toque em <strong>"Adicionar"</strong> no canto superior.</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : isAndroid ? (
-                                <div className="space-y-4">
-                                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">No Android (Chrome):</p>
-                                    <div className="space-y-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm text-lg">⋮</div>
-                                            <p className="text-sm text-gray-600 dark:text-gray-400">1. Toque no menu de <strong>três pontos</strong> no canto superior.</p>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm text-lg">📲</div>
-                                            <p className="text-sm text-gray-600 dark:text-gray-400">2. Selecione <strong>"Instalar aplicativo"</strong> ou "Adicionar à tela inicial".</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    Abra o menu do seu navegador e procure por <strong>"Instalar"</strong> ou <strong>"Adicionar à tela inicial"</strong>.
-                                </p>
-                            )}
-                        </div>
-                    )}
-                </div>
-
-                <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl">
-                    <h4 className="text-sm font-bold text-yellow-800 dark:text-yellow-400 flex items-center gap-2 mb-1">
-                         🛡️ Segurança das Chaves de API
-                    </h4>
-                    <p className="text-xs text-yellow-700 dark:text-yellow-500 leading-relaxed">
-                        A chave do Firebase é identificada publicamente. Para proteção total, acesse o <strong>Console do Google Cloud</strong>, selecione sua chave e adicione uma <strong>Restrição de Site (HTTP Referrer)</strong> para o domínio oficial do seu sistema. Isso impede que terceiros usem sua cota de API em outros sites.
-                    </p>
                 </div>
             </div>
         );

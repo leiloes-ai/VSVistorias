@@ -68,8 +68,8 @@ const FinancialReports: React.FC = () => {
         const revenue = result.filter(t => t.type === 'Receita').reduce((sum, t) => sum + t.amount, 0);
         const expense = result.filter(t => t.type === 'Despesa').reduce((sum, t) => sum + t.amount, 0);
         
-        // FIX: Explicitly type the accumulator in the reduce function to prevent TypeScript from inferring it as 'unknown'.
-        const cashFlowData = result.reduce((acc: Record<string, { month: string; Receita: number; Despesa: number }>, t) => {
+        // FIX: Explicitly type the accumulator and specifying generic type for reduce to prevent 'unknown' inference.
+        const cashFlowDataMap = result.reduce<Record<string, { month: string; Receita: number; Despesa: number }>>((acc, t) => {
             const month = new Date(t.date + 'T00:00:00').toLocaleDateString('pt-BR', { year: '2-digit', month: 'short' });
             if (!acc[month]) {
                 acc[month] = { month, Receita: 0, Despesa: 0 };
@@ -77,22 +77,23 @@ const FinancialReports: React.FC = () => {
             if (t.type === 'Receita') acc[month].Receita += t.amount;
             else acc[month].Despesa += t.amount;
             return acc;
-        }, {} as Record<string, { month: string; Receita: number; Despesa: number }>);
+        }, {});
         
-        // FIX: Explicitly type the accumulator in the reduce function to prevent TypeScript from inferring it as 'unknown'.
-        const expenseByCategoryData = result.filter(t => t.type === 'Despesa').reduce((acc: Record<string, { name: string; value: number }>, t) => {
+        // FIX: Explicitly type the accumulator and specifying generic type for reduce to prevent 'unknown' inference and missing '.value' errors.
+        const expenseByCategoryDataMap = result.filter(t => t.type === 'Despesa').reduce<Record<string, { name: string; value: number }>>((acc, t) => {
             if (!acc[t.category]) {
                 acc[t.category] = { name: t.category, value: 0 };
             }
             acc[t.category].value += t.amount;
             return acc;
-        }, {} as Record<string, { name: string; value: number }>);
+        }, {});
 
         setReportData({
             transactions: result,
             summary: { revenue, expense, balance: revenue - expense },
-            cashFlow: Object.values(cashFlowData),
-            expenseByCategory: Object.values(expenseByCategoryData).sort((a,b) => b.value - a.value),
+            cashFlow: Object.values(cashFlowDataMap),
+            // FIX: Explicitly cast values to avoid sorting errors on potentially unknown types.
+            expenseByCategory: (Object.values(expenseByCategoryDataMap) as { name: string, value: number }[]).sort((a,b) => b.value - a.value),
         });
     };
     

@@ -117,21 +117,21 @@ const FinancialDashboard: React.FC = () => {
         const totalReceivable = financials.filter(t => t.isPayableOrReceivable && t.type === 'Receita' && t.status !== 'Paga').reduce((sum, t) => sum + t.amount, 0);
         const totalPayable = financials.filter(t => t.isPayableOrReceivable && t.type === 'Despesa' && t.status !== 'Paga').reduce((sum, t) => sum + t.amount, 0);
         
-        // FIX: Explicitly type the accumulator in the reduce function to prevent TypeScript from inferring it as 'unknown'.
-        const cashFlowData = transactionsInPeriod.reduce((acc: Record<string, { month: string; Receita: number; Despesa: number }>, t) => {
+        // FIX: Explicitly type the accumulator and use generic type for reduce to ensure 'acc[month]' is recognized.
+        const cashFlowData = transactionsInPeriod.reduce<Record<string, { month: string; Receita: number; Despesa: number }>>((acc, t) => {
             const month = new Date((t.paymentDate || t.date) + 'T00:00:00').toLocaleDateString('pt-BR', { year: '2-digit', month: 'short' });
             if (!acc[month]) acc[month] = { month, Receita: 0, Despesa: 0 };
             if (t.type === 'Receita') acc[month].Receita += t.amount;
             else acc[month].Despesa += t.amount;
             return acc;
-        }, {} as Record<string, { month: string; Receita: number; Despesa: number }>);
+        }, {});
 
-        // FIX: Explicitly type the accumulator in the reduce function to prevent TypeScript from inferring it as 'unknown'.
-        const expenseData = transactionsInPeriod.filter(t => t.type === 'Despesa').reduce((acc: Record<string, { name: string; value: number }>, t) => {
+        // FIX: Explicitly type the accumulator and use generic type for reduce to prevent 'unknown' errors when accessing .value.
+        const expenseDataMap = transactionsInPeriod.filter(t => t.type === 'Despesa').reduce<Record<string, { name: string; value: number }>>((acc, t) => {
             if (!acc[t.category]) acc[t.category] = { name: t.category, value: 0 };
             acc[t.category].value += t.amount;
             return acc;
-        }, {} as Record<string, { name: string; value: number }>);
+        }, {});
         
         const today = new Date(); today.setHours(0,0,0,0);
         const next7days = new Date(); next7days.setDate(today.getDate() + 7);
@@ -145,7 +145,6 @@ const FinancialDashboard: React.FC = () => {
             .filter(t => new Date(t.paymentDate || t.date) < startDate)
             .reduce((balance, t) => t.type === 'Receita' ? balance + t.amount : balance - t.amount, totalInitialAccountBalance);
 
-        // FIX: Explicitly type the accumulator in the reduce function to prevent TypeScript from inferring it as 'unknown'.
         const dailyChanges = transactionsInPeriod.reduce((acc: Record<string, number>, t) => {
             const dateStr = (t.paymentDate || t.date);
             const change = t.type === 'Receita' ? t.amount : -t.amount;
@@ -166,7 +165,8 @@ const FinancialDashboard: React.FC = () => {
         return {
             kpis: { revenue, expense, balance: revenue - expense, totalReceivable, totalPayable },
             cashFlow: Object.values(cashFlowData),
-            expenses: Object.values(expenseData).sort((a, b) => b.value - a.value),
+            // FIX: Explicitly cast values to avoid sorting errors on potentially unknown types.
+            expenses: (Object.values(expenseDataMap) as { name: string, value: number }[]).sort((a, b) => b.value - a.value),
             upcomingPayables: { items: upcomingPayables, total: upcomingPayables.reduce((sum, t) => sum + t.amount, 0) },
             overduePayables: { items: overduePayables, total: overduePayables.reduce((sum, t) => sum + t.amount, 0) },
             recentTransactions,

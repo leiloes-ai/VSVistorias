@@ -1,4 +1,3 @@
-
 import React, { useState, useContext, useEffect } from 'react';
 import Sidebar from './components/Sidebar.tsx';
 import Header from './components/Header.tsx';
@@ -16,6 +15,7 @@ import { AppContext } from './contexts/AppContext.tsx';
 import LoginPage from './pages/LoginPage.tsx';
 import ForcePasswordChangeModal from './components/ForcePasswordChangeModal.tsx';
 import UpdateNotification from './components/UpdateNotification.tsx';
+import InstallPWAButton from './components/InstallPWAButton.tsx';
 
 
 export type Page = 'Dashboard' | 'Agendamentos' | 'Pendências' | 'Novas Solicitações' | 'Relatórios' | 'Usuários' | 'Configurações' | 'Meu Perfil' | 'Financeiro';
@@ -79,6 +79,8 @@ const App: React.FC = () => {
       
       {notification && <Notification message={notification} onClose={clearNotification} />}
       {isUpdateAvailable && <UpdateNotification onUpdate={updateApp} />}
+      
+      <InstallPWAButton />
       
       <Sidebar 
         isSidebarOpen={isSidebarOpen}
