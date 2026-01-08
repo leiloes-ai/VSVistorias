@@ -1,4 +1,3 @@
-
 import React, { useContext, useState, useRef, useEffect } from 'react';
 import { AppContext } from '../contexts/AppContext.tsx';
 import { UserIcon, LogoutIcon } from './Icons.tsx';
@@ -32,24 +31,24 @@ const Header: React.FC<HeaderProps> = ({ currentPage, onMenuClick }) => {
   }, []);
 
   return (
-    <header className="h-20 flex-shrink-0 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 flex items-center justify-between px-6 border-b border-gray-200 dark:border-gray-700 transition-colors duration-300">
-      <div className="flex items-center gap-4">
-          <button onClick={onMenuClick} className="md:hidden text-gray-600 dark:text-gray-300">
+    <header className="h-20 flex-shrink-0 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 flex items-center justify-between px-4 sm:px-6 border-b border-gray-200 dark:border-gray-700 transition-colors duration-300 overflow-hidden">
+      <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <button onClick={onMenuClick} className="md:hidden text-gray-600 dark:text-gray-300 flex-shrink-0">
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7" />
               </svg>
           </button>
-          <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">{currentPage}</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 dark:text-white truncate">{currentPage}</h2>
       </div>
-      <div className="flex items-center space-x-4">
-        <div className="text-right">
-          <p className="font-semibold text-gray-800 dark:text-white">{user?.name}</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">{user ? user.roles.map(r => roleTranslations[r]).join(', ') : ''}</p>
+      <div className="flex items-center space-x-3 sm:space-x-4 ml-2 min-w-0">
+        <div className="text-right hidden xs:block min-w-0">
+          <p className="font-semibold text-gray-800 dark:text-white truncate max-w-[120px] sm:max-w-[200px]">{user?.name}</p>
+          <p className="text-[10px] sm:text-sm text-gray-500 dark:text-gray-400 capitalize truncate">{user ? user.roles.map(r => roleTranslations[r]).join(', ') : ''}</p>
         </div>
-        <div className="relative" ref={dropdownRef}>
+        <div className="relative flex-shrink-0" ref={dropdownRef}>
             <button 
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="h-12 w-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-800 ring-transparent focus:ring-primary-500 transition"
+                className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-800 ring-transparent focus:ring-primary-500 transition"
             >
                 {user?.photoURL ? <img src={user.photoURL} alt="Foto do perfil" className="h-full w-full object-cover" /> : <UserIcon />}
             </button>

@@ -77,7 +77,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="fixed inset-0 bg-gray-100 dark:bg-gray-900 font-sans overflow-hidden flex flex-col md:flex-row h-[100dvh] w-screen">
+    <div className="fixed inset-0 bg-gray-100 dark:bg-gray-900 font-sans overflow-hidden flex flex-col md:flex-row h-[100dvh] w-full max-w-full">
       {isForcePasswordChangeOpen && <ForcePasswordChangeModal onClose={() => setIsForcePasswordChangeOpen(false)} />}
       
       {notification && <Notification message={notification} onClose={clearNotification} />}
@@ -99,10 +99,10 @@ const App: React.FC = () => {
         ></div>
       )}
       
-      <div className="flex-1 flex flex-col min-w-0 h-full relative">
+      <div className="flex-1 flex flex-col min-w-0 h-full relative overflow-hidden">
         <Header currentPage={activePage} onMenuClick={() => setIsSidebarOpen(true)} />
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-2 sm:p-6 pb-24 md:pb-6 no-scrollbar">
-          <div className="max-w-7xl mx-auto">
+          <div className="max-w-7xl mx-auto w-full">
             {renderPage()}
           </div>
         </main>
