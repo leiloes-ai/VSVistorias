@@ -219,29 +219,29 @@ const Appointments: React.FC = () => {
   const renderMobileCards = () => (
     <div className="flex flex-col gap-4 lg:hidden w-full pb-10">
         {filteredAppointments.map(app => (
-            <div key={app.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-5 border-l-8 border-primary-500 w-full overflow-hidden">
-                <div className="flex justify-between items-center mb-4">
-                    <span className="text-[10px] font-bold font-mono text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-2 py-1 rounded-md uppercase">
+            <div key={app.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-5 border-l-8 border-primary-500 w-full overflow-hidden flex flex-col">
+                <div className="flex justify-between items-center mb-4 gap-2">
+                    <span className="text-[10px] font-bold font-mono text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-2 py-1 rounded-md uppercase whitespace-nowrap overflow-hidden text-ellipsis max-w-[50%]">
                         {app.displayId || `#${app.stringId?.slice(-6).toUpperCase()}`}
                     </span>
-                    <span className="text-xs font-bold text-gray-400">{new Date(app.date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                    <span className="text-xs font-bold text-gray-400 whitespace-nowrap">{new Date(app.date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
                 </div>
                 <div className="mb-4">
-                    <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{app.licensePlate}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-tight">{app.description}</p>
+                    <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight break-all">{app.licensePlate}</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-tight line-clamp-2">{app.description}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3 mb-5 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl text-xs">
-                    <div>
+                    <div className="min-w-0">
                         <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Solicitante</span>
-                        <span className="font-bold text-gray-700 dark:text-gray-200 line-clamp-1">{app.requester}</span>
+                        <span className="font-bold text-gray-700 dark:text-gray-200 block truncate">{app.requester}</span>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                         <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Pátio</span>
-                        <span className="font-bold text-gray-700 dark:text-gray-200 line-clamp-1">{app.patio}</span>
+                        <span className="font-bold text-gray-700 dark:text-gray-200 block truncate">{app.patio}</span>
                     </div>
-                    <div className="col-span-2 pt-1 border-t border-gray-200 dark:border-gray-700">
+                    <div className="col-span-2 pt-1 border-t border-gray-200 dark:border-gray-700 min-w-0">
                         <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Vistoriador</span>
-                        <span className="font-bold text-gray-700 dark:text-gray-200">{getInspectorName(app.inspectorId)}</span>
+                        <span className="font-bold text-gray-700 dark:text-gray-200 block truncate">{getInspectorName(app.inspectorId)}</span>
                     </div>
                 </div>
                 <div className="flex flex-col gap-3">
@@ -254,8 +254,8 @@ const Appointments: React.FC = () => {
                         {settings.statuses.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                     </select>
                     <div className="flex gap-2">
-                        <button onClick={() => handleEditClick(app)} disabled={!canUpdate} className="flex-1 flex justify-center items-center gap-2 p-3 bg-primary-50 text-primary-600 rounded-xl dark:bg-primary-900/30 font-bold active:scale-95 transition-transform"><EditIcon /> Editar</button>
-                        <button onClick={() => handleDeleteClick(app)} disabled={!canCreateOrDelete} className="flex-1 flex justify-center items-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl dark:bg-red-900/30 font-bold active:scale-95 transition-transform"><DeleteIcon /> Excluir</button>
+                        <button onClick={() => handleEditClick(app)} disabled={!canUpdate} className="flex-1 flex justify-center items-center gap-2 p-3 bg-primary-50 text-primary-600 rounded-xl dark:bg-primary-900/30 font-bold active:scale-95 transition-transform"><EditIcon /> <span className="hidden xs:inline">Editar</span></button>
+                        <button onClick={() => handleDeleteClick(app)} disabled={!canCreateOrDelete} className="flex-1 flex justify-center items-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl dark:bg-red-900/30 font-bold active:scale-95 transition-transform"><DeleteIcon /> <span className="hidden xs:inline">Excluir</span></button>
                     </div>
                 </div>
             </div>
@@ -329,7 +329,7 @@ const Appointments: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 p-2 sm:p-5 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700/50">
+      <div className="bg-white dark:bg-gray-800 p-2 sm:p-5 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700/50 w-full overflow-hidden">
         <div className="flex flex-col gap-4 mb-6">
             <div className="relative w-full">
                 <input type="text" placeholder="Buscar por placa, solicitante, ID..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} spellCheck="true" className="w-full pl-11 pr-4 py-3 text-base border border-gray-300 dark:border-gray-600 rounded-2xl bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-inner" />
@@ -345,12 +345,12 @@ const Appointments: React.FC = () => {
                     
                     {isAdminOrMasterOrClient && (
                         <div className="flex flex-grow items-center gap-3 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-2xl bg-gray-50 dark:bg-gray-700 overflow-hidden">
-                            <input type="checkbox" id="searchByDate" checked={searchByDate} onChange={(e) => handleToggleSearchByDate(e.target.checked)} className="h-5 w-5 rounded-md border-gray-300 text-primary-600 focus:ring-primary-500"/>
+                            <input type="checkbox" id="searchByDate" checked={searchByDate} onChange={(e) => handleToggleSearchByDate(e.target.checked)} className="h-5 w-5 rounded-md border-gray-300 text-primary-600 focus:ring-primary-500 flex-shrink-0"/>
                             <label htmlFor="searchByDate" className="text-xs font-black text-gray-700 dark:text-gray-300 whitespace-nowrap">POR PERÍODO</label>
                             <div className={`flex items-center gap-2 flex-grow transition-opacity ${searchByDate ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
-                                <input type="date" name="start" value={dateFilter.start} onChange={handleDateFilterChange} className="w-full bg-transparent border-none p-0 text-xs font-bold focus:ring-0 text-gray-700 dark:text-gray-200" />
+                                <input type="date" name="start" value={dateFilter.start} onChange={handleDateFilterChange} className="w-full bg-transparent border-none p-0 text-[10px] sm:text-xs font-bold focus:ring-0 text-gray-700 dark:text-gray-200" />
                                 <span className="text-gray-400 font-bold">/</span>
-                                <input type="date" name="end" value={dateFilter.end} onChange={handleDateFilterChange} className="w-full bg-transparent border-none p-0 text-xs font-bold focus:ring-0 text-gray-700 dark:text-gray-200" />
+                                <input type="date" name="end" value={dateFilter.end} onChange={handleDateFilterChange} className="w-full bg-transparent border-none p-0 text-[10px] sm:text-xs font-bold focus:ring-0 text-gray-700 dark:text-gray-200" />
                             </div>
                         </div>
                     )}

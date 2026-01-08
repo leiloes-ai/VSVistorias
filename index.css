@@ -217,3 +217,8 @@ html[data-text-palette="stone"] .dark\:text-gray-400 { color: #a8a29e; }
     -ms-overflow-style: none;
     scrollbar-width: none;
 }
+
+/* Safe area support for mobile */
+main {
+    padding-bottom: env(safe-area-inset-bottom);
+}

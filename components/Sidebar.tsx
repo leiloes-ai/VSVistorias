@@ -69,9 +69,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen, setIsSidebarOpen }) =>
       );
   }
 
+  // Define sidebar width dynamically
+  const sidebarWidthClass = isCollapsed ? 'w-[72px]' : 'w-64';
+
   return (
     <aside 
-      className={`fixed inset-y-0 left-0 z-30 flex-shrink-0 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 flex flex-col transition-[width] duration-300 ease-in-out md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${isCollapsed ? `w-[${COLLAPSED_WIDTH}px]` : 'w-64'}`}
+      className={`fixed inset-y-0 left-0 z-50 flex-shrink-0 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 flex flex-col transition-[transform,width] duration-300 ease-in-out md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${sidebarWidthClass}`}
     >
         <div className={`h-20 flex items-center border-b border-gray-200 dark:border-gray-700 flex-shrink-0 overflow-hidden ${isCollapsed ? 'justify-center' : 'justify-between px-4'}`}>
             <div className={`flex items-center gap-3 overflow-hidden transition-opacity duration-200 ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>

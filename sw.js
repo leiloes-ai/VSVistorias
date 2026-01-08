@@ -1,5 +1,7 @@
-// Service Worker Version: v1.17.0
-const VERSION = 'v1.17.0';
+console.log('[SW] Service Worker Carregado com Sucesso.');
+
+// Service Worker Version: v1.17.1
+const VERSION = 'v1.17.1';
 const CACHE_NAME = `gestorpro-cache-${VERSION}`;
 
 const APP_SHELL_URLS = [

@@ -207,8 +207,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const canRegister = await performPWADiagnosis();
         if (!canRegister) return;
 
-        // Tenta registrar o SW usando o caminho relativo sem a barra inicial se necessário para o Vercel
-        const swPath = 'sw.js'; 
+        // Tenta registrar o SW usando o caminho absoluto
+        const swPath = '/sw.js'; 
         
         navigator.serviceWorker.register(swPath, { scope: '/', type: 'module' })
             .then(registration => {
@@ -227,10 +227,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 };
             })
             .catch(error => {
-                console.error('PWA Diagnostic: Erro ao carregar Service Worker. Verifique se o arquivo sw.js existe na raiz.', error.message);
-                if (error.message.includes('404')) {
-                    console.error("PWA Diagnostic ERRO 404: O servidor não encontrou o arquivo sw.js. Certifique-se de que ele foi enviado para a raiz do site.");
-                }
+                console.error('PWA Diagnostic: Erro ao carregar Service Worker.', error.message);
             });
     };
 
