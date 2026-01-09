@@ -1,7 +1,7 @@
-// GESTORPRO SERVICE WORKER - ATUALIZAÇÃO V1.18.3
-console.log('[SW] Service Worker v1.18.3 - Inicializando...');
+// GESTORPRO SERVICE WORKER - V1.18.4
+console.log('[SW] Service Worker v1.18.4 - Inicializando...');
 
-const VERSION = 'v1.18.3';
+const VERSION = 'v1.18.4';
 const CACHE_NAME = `gestorpro-cache-${VERSION}`;
 
 const APP_SHELL_URLS = [
@@ -14,16 +14,14 @@ const APP_SHELL_URLS = [
   '/icon-512.png'
 ];
 
-// Helper para enviar logs para a aplicação principal (Debug Terminal)
+// Helper para enviar logs para a aplicação principal
 async function logToApp(level, message) {
     try {
         const clients = await self.clients.matchAll();
         clients.forEach(client => {
             client.postMessage({ type: 'SW_LOG', level, message: `[Internal SW] ${message}` });
         });
-    } catch (e) {
-        // Silencioso se falhar o postMessage
-    }
+    } catch (e) {}
 }
 
 // --- Configuração do Firebase Messaging ---
@@ -53,20 +51,14 @@ onBackgroundMessage(messaging, (payload) => {
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
-// INSTALL: Cache imediato do App Shell
 self.addEventListener('install', (event) => {
-  logToApp('info', `Iniciando instalação da versão ${VERSION}...`);
+  logToApp('info', `Instalando versão ${VERSION}...`);
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(APP_SHELL_URLS).then(() => {
-          logToApp('log', 'App Shell cacheado com sucesso.');
-      });
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL_URLS))
   );
 });
 
-// ACTIVATE: Limpeza de caches velhos e controle imediato
 self.addEventListener('activate', (event) => {
   logToApp('info', `Ativando versão ${VERSION}...`);
   event.waitUntil(
@@ -74,15 +66,9 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames
           .filter((name) => name.startsWith('gestorpro-cache-') && name !== CACHE_NAME)
-          .map((name) => {
-              logToApp('warn', `Removendo cache obsoleto: ${name}`);
-              return caches.delete(name);
-          })
+          .map((name) => caches.delete(name))
       );
-    }).then(() => {
-        logToApp('info', 'Service Worker agora controlando a página.');
-        return self.clients.claim();
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
@@ -92,12 +78,10 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// FETCH: Estratégia Stale-While-Revalidate
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Ignora chamadas do Firebase/APIs
   if (url.hostname.includes('googleapis.com') || url.hostname.includes('firebaseapp.com') || url.hostname.includes('gstatic.com')) {
     return;
   }
@@ -114,9 +98,7 @@ self.addEventListener('fetch', (event) => {
           });
         }
         return networkResponse;
-      }).catch((err) => {
-          if (cachedResponse) return cachedResponse;
-      });
+      }).catch(() => cachedResponse);
       return cachedResponse || fetchPromise;
     })
   );

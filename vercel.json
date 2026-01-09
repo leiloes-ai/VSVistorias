@@ -2,7 +2,7 @@
   "cleanUrls": true,
   "headers": [
     {
-      "source": "/sw.js(.*)",
+      "source": "/sw.js",
       "headers": [
         {
           "key": "Content-Type",
@@ -27,7 +27,7 @@
         },
         {
           "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
+          "value": "no-cache, must-revalidate"
         }
       ]
     }
@@ -42,16 +42,8 @@
       "destination": "/manifest.json"
     },
     {
-      "source": "/favicon.ico",
-      "destination": "/favicon.ico"
-    },
-    {
-      "source": "/icon-(.*)",
-      "destination": "/icon-$1"
-    },
-    {
-      "source": "/(.*\\.(js|css|png|jpg|svg|json|webp)$)",
-      "destination": "/$1"
+      "source": "/icon-(.*).png",
+      "destination": "/icon-$1.png"
     },
     {
       "source": "/(.*)",

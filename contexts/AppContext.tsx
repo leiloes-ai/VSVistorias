@@ -108,12 +108,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const isSandbox = window.location.protocol === 'blob:';
 
     if (!isSandbox && isSecure && 'serviceWorker' in navigator) {
-        // Usamos um timestamp para evitar 404s cacheados pelo navegador durante o deploy
-        const swUrl = `/sw.js?v=${new Date().getTime()}`;
-        navigator.serviceWorker.register(swUrl, { scope: '/', type: 'module' })
+        // Registro limpo com type: module
+        navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' })
             .then(registration => {
                 setSwRegistration(registration);
-                console.info("PWA: Service Worker registrado com sucesso.");
+                console.info("PWA: Service Worker ativo.");
                 registration.onupdatefound = () => {
                     const worker = registration.installing;
                     if (worker) worker.onstatechange = () => {
@@ -121,7 +120,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     };
                 };
             }).catch(err => {
-                console.error("PWA: Erro no registro:", err.message);
+                console.error("PWA: Falha crítica ao registrar SW:", err.message);
             });
     }
 
@@ -131,14 +130,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   const repairPWA = async () => {
-      console.info("Reparo de PWA: Iniciando limpeza...");
+      console.info("Reparo de PWA: Limpando registros e caches...");
       try {
           if ('serviceWorker' in navigator) {
               const registrations = await navigator.serviceWorker.getRegistrations();
               for (const registration of registrations) {
                   await registration.unregister();
               }
-              const swUrl = `/sw.js?repair=${new Date().getTime()}`;
+              // Força o registro novamente com um pequeno cache-buster apenas no reparo
+              const swUrl = `/sw.js?repair=${Date.now()}`;
               const newRegistration = await navigator.serviceWorker.register(swUrl, { scope: '/', type: 'module' });
               setSwRegistration(newRegistration);
           }
@@ -146,7 +146,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               const keys = await caches.keys();
               for (const key of keys) { await caches.delete(key); }
           }
-          return { success: true, message: "PWA reparado! O registro foi forçado. Aguarde alguns segundos e recarregue com Ctrl+F5." };
+          return { success: true, message: "PWA reparado! O sistema foi limpo e o registro do Service Worker foi reiniciado. Recarregue a página." };
       } catch (err: any) {
           return { success: false, message: `Erro no reparo: ${err.message}` };
       }
