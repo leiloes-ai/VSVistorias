@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { User, Appointment, Settings, Theme, ThemePalette, Pendency, SettingCategory, TextPalette, FinancialTransaction, FinancialPage, FinancialAccount, ThirdParty } from '../types.ts';
 import { db, auth } from '../firebaseConfig.ts';
@@ -16,6 +15,7 @@ interface AppContextType {
   loading: boolean; isOnline: boolean; notification: string | null; clearNotification: () => void;
   triggerNotification: (message?: string) => void; pageNotifications: Record<Page, boolean>; clearPageNotification: (page: Page) => void;
   installPromptEvent: Event | null; triggerInstallPrompt: () => void; isUpdateAvailable: boolean; updateApp: () => void; isStandalone: boolean;
+  repairPWA: () => Promise<{ success: boolean; message: string }>;
   login: (email: string, pass: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void; sendPasswordReset: (email: string) => Promise<{ success: boolean; message: string }>;
   activePage: Page; setActivePage: (page: Page) => void;
@@ -62,7 +62,6 @@ export const AppContext = createContext<AppContextType>({} as any);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'light');
-  // Define toggleTheme to be passed into the context value
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
   const [themePalette, setThemePalette] = useState<ThemePalette>(() => (localStorage.getItem('themePalette') as ThemePalette) || 'blue');
   const [textPalette, setTextPalette] = useState<TextPalette>(() => (localStorage.getItem('textPalette') as TextPalette) || 'gray');
@@ -105,7 +104,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
     checkStandalone();
     
-    // PWA Logic Improvements
     const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
     const isSandbox = window.location.protocol === 'blob:';
 
@@ -126,6 +124,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     window.addEventListener('beforeinstallprompt', handlePrompt);
     return () => window.removeEventListener('beforeinstallprompt', handlePrompt);
   }, []);
+
+  const repairPWA = async () => {
+      console.info("Reparo de PWA: Iniciando rotina de correção...");
+      try {
+          if ('serviceWorker' in navigator) {
+              const registrations = await navigator.serviceWorker.getRegistrations();
+              for (const registration of registrations) {
+                  await registration.unregister();
+                  console.log("Reparo: Service Worker antigo removido.");
+              }
+              const newRegistration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+              setSwRegistration(newRegistration);
+              console.log("Reparo: Novo Service Worker registrado.");
+          }
+          if ('caches' in window) {
+              const keys = await caches.keys();
+              for (const key of keys) { await caches.delete(key); }
+              console.log("Reparo: Cache limpo.");
+          }
+          return { success: true, message: "PWA reparado com sucesso! Se os erros persistirem, reinicie o navegador." };
+      } catch (err: any) {
+          console.error("Erro no Reparo PWA:", err);
+          return { success: false, message: `Falha no reparo: ${err.message}` };
+      }
+  };
 
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, (firebaseUser) => {
@@ -185,6 +208,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         loading, isOnline, notification, clearNotification: () => setNotification(null), triggerNotification: (m) => setNotification(m || "Atualizado"),
         pageNotifications, clearPageNotification: (p) => setPageNotifications(prev => ({...prev, [p]: false})),
         installPromptEvent, triggerInstallPrompt, isUpdateAvailable, updateApp: () => swRegistration?.waiting?.postMessage({type: 'SKIP_WAITING'}), isStandalone,
+        repairPWA,
         login, logout, sendPasswordReset: async (e) => { try { await sendPasswordResetEmail(auth, e); return {success:true, message:'Email enviado'}; } catch(err) {return {success:false, message:'Erro'};} },
         activePage, setActivePage, activeFinancialPage: 'Dashboard', setActiveFinancialPage: () => {},
         addAppointment, updateAppointment, deleteAppointment, 
@@ -205,7 +229,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         deleteThirdParty: async (id) => { await deleteDoc(doc(db, "thirdParties", id)); },
         addUser: async (u) => { try { const res = await createUserWithEmailAndPassword(auth, u.email, '123mudar'); await setDoc(doc(db, "users", res.user.uid), {...u, forcePasswordChange:true}); return {success:true, message:'Criado'}; } catch(e){return {success:false, message:'Erro'};} },
         updateUser: async (u) => { const {id, ...data} = u; await updateDoc(doc(db, "users", id), data); },
-        updateUserPhoto: async (id, url) => { await updateDoc(doc(db, "users", id), { photoURL: url }); },
+        updateUserPhoto: async (id, url) => { await updateDoc(doc(db, "users", url), { photoURL: url }); },
         deleteUser: async (id) => { await deleteDoc(doc(db, "users", id)); },
         updatePassword: async (o, n) => { try { await fbUpdatePassword(auth.currentUser!, n); return {success:true, message:'OK'}; } catch(e){return {success:false, message:'Erro'};} },
         resetPassword: async (e) => { try { await sendPasswordResetEmail(auth, e); return {success:true, message:'OK'}; } catch(e){return {success:false, message:'Erro'};} },

@@ -52,7 +52,7 @@ const Settings: React.FC = () => {
     const { 
         settings, updateSettings, appointments, user, logo, updateLogo,
         theme, setTheme, themePalette, setThemePalette, textPalette, setTextPalette,
-        installPromptEvent, triggerInstallPrompt, isStandalone, isOnline
+        installPromptEvent, triggerInstallPrompt, isStandalone, isOnline, repairPWA
     } = useContext(AppContext);
     
     const isAdminOrMaster = user?.roles.includes('master') || user?.roles.includes('admin');
@@ -75,6 +75,7 @@ const Settings: React.FC = () => {
     const [swState, setSwState] = useState<'checking' | 'active' | 'none' | 'unsupported' | 'blocked'>('checking');
     const [cacheInfo, setCacheInfo] = useState<string>('Verificando...');
     const [isSandboxEnv, setIsSandboxEnv] = useState(false);
+    const [isRepairing, setIsRepairing] = useState(false);
 
     useEffect(() => {
         setLocalSettings(settings);
@@ -118,6 +119,14 @@ const Settings: React.FC = () => {
         }
     };
 
+    const handleRepairPWA = async () => {
+        setIsRepairing(true);
+        const result = await repairPWA();
+        alert(result.message);
+        await checkPWAHealth();
+        setIsRepairing(false);
+    };
+
     const handleCopyPWADiagnostic = async () => {
         const registration = await navigator.serviceWorker.getRegistration();
         const cacheKeys = await caches.keys();
@@ -147,7 +156,7 @@ Prompt Disponível: ${installPromptEvent ? 'SIM' : 'NÃO'}
 Requisitos SSL: ${window.location.protocol === 'https:' ? 'OK' : 'FALHA'}
 
 --- ANÁLISE DE ERROS ---
-${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Service Workers e instalação em previews de desenvolvimento. Teste o PWA em um domínio real HTTPS." : "Ambiente nominal. Verifique se o Manifest.json está acessível."}
+${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Service Workers e instalação em previews de desenvolvimento. Teste o PWA em um domínio real HTTPS." : swState === 'none' ? "ERRO: Service Worker não registrado. Use o botão 'REPARAR REGISTRO' para forçar a ativação." : "Ambiente nominal."}
 ==========================================
         `.trim();
 
@@ -397,7 +406,7 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                             <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50">
                                 <span className="text-[10px] font-black text-gray-500 uppercase">Service Worker</span>
                                 <span className={`text-[10px] font-black uppercase ${swState === 'active' ? 'text-green-500' : swState === 'blocked' ? 'text-orange-500' : 'text-amber-500'}`}>
-                                    {swState === 'active' ? 'Ativo & Rodando' : swState === 'blocked' ? 'Bloqueado (Sandbox)' : swState === 'checking' ? 'Verificando...' : 'Inativo'}
+                                    {swState === 'active' ? 'Ativo & Rodando' : swState === 'blocked' ? 'Bloqueado (Sandbox)' : swState === 'checking' ? 'Verificando...' : 'Inativo / Off'}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50">
@@ -414,10 +423,11 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                         
                         <div className="grid grid-cols-2 gap-3 mt-4">
                             <button 
-                                onClick={checkPWAHealth}
-                                className="w-full py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                                onClick={handleRepairPWA}
+                                disabled={isRepairing || isSandboxEnv}
+                                className="w-full py-2 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-colors disabled:bg-gray-400"
                             >
-                                Re-Testar
+                                {isRepairing ? 'Reparando...' : 'Reparar Registro'}
                             </button>
                             <button 
                                 onClick={handleCopyPWADiagnostic}
@@ -433,8 +443,10 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                     <div className="flex gap-3">
                         <div className="text-amber-600 flex-shrink-0"><ClockIcon /></div>
                         <div>
-                            <p className="text-xs font-black text-amber-800 dark:text-amber-400 uppercase tracking-tighter">Dica de Suporte:</p>
-                            <p className="text-[11px] text-amber-700 dark:text-amber-500 mt-1">Se o status for "Inativo" fora do Sandbox, certifique-se de que o SSL (HTTPS) está configurado corretamente. Clique em "COPIAR LOG" para gerar um relatório completo para o suporte.</p>
+                            <p className="text-xs font-black text-amber-800 dark:text-amber-400 uppercase tracking-tighter">Nota sobre Produção:</p>
+                            <p className="text-[11px] text-amber-700 dark:text-amber-500 mt-1 leading-relaxed">
+                                Se o Service Worker estiver "Inativo" em ambiente HTTPS, clique em <b>"REPARAR REGISTRO"</b>. Isso forçará o navegador a baixar novamente os arquivos de configuração do PWA e limpar caches corrompidos.
+                            </p>
                         </div>
                     </div>
                 </div>

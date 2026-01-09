@@ -1,7 +1,6 @@
-console.log('[SW] Service Worker v1.18.0 - Inicializando diagnóstico...');
+console.log('[SW] Service Worker v1.18.1 - Inicializando...');
 
-// Service Worker Version: v1.18.0
-const VERSION = 'v1.18.0';
+const VERSION = 'v1.18.1';
 const CACHE_NAME = `gestorpro-cache-${VERSION}`;
 
 const APP_SHELL_URLS = [
@@ -13,6 +12,14 @@ const APP_SHELL_URLS = [
   '/icon-192.png',
   '/icon-512.png'
 ];
+
+// Helper para enviar logs para a aplicação principal (Debug Terminal)
+async function logToApp(level, message) {
+    const clients = await self.clients.matchAll();
+    clients.forEach(client => {
+        client.postMessage({ type: 'SW_LOG', level, message: `[Internal SW] ${message}` });
+    });
+}
 
 // --- Configuração do Firebase Messaging ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
@@ -43,31 +50,32 @@ onBackgroundMessage(messaging, (payload) => {
 
 // INSTALL: Cache imediato do App Shell
 self.addEventListener('install', (event) => {
-  console.log(`[SW] Instalando versão ${VERSION}...`);
+  logToApp('info', `Iniciando instalação da versão ${VERSION}...`);
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Cache Shell iniciado.');
-      return cache.addAll(APP_SHELL_URLS);
+      return cache.addAll(APP_SHELL_URLS).then(() => {
+          logToApp('log', 'App Shell cacheado com sucesso.');
+      });
     })
   );
 });
 
-// ACTIVATE: Limpeza de caches velhos
+// ACTIVATE: Limpeza de caches velhos e controle imediato
 self.addEventListener('activate', (event) => {
-  console.log(`[SW] Ativando versão ${VERSION} e limpando caches antigos.`);
+  logToApp('info', `Ativando versão ${VERSION}...`);
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
           .filter((name) => name.startsWith('gestorpro-cache-') && name !== CACHE_NAME)
           .map((name) => {
-              console.log(`[SW] Removendo cache obsoleto: ${name}`);
+              logToApp('warn', `Removendo cache obsoleto: ${name}`);
               return caches.delete(name);
           })
       );
     }).then(() => {
-        console.log('[SW] Agora controlando a página.');
+        logToApp('info', 'Service Worker agora controlando a página.');
         return self.clients.claim();
     })
   );
@@ -84,7 +92,6 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Ignorar chamadas do Firebase e APIs externas para não interferir no Auth/Firestore
   if (url.hostname.includes('googleapis.com') || url.hostname.includes('firebaseapp.com') || url.hostname.includes('gstatic.com')) {
     return;
   }
@@ -103,9 +110,7 @@ self.addEventListener('fetch', (event) => {
         return networkResponse;
       }).catch((err) => {
           if (cachedResponse) return cachedResponse;
-          console.warn('[SW] Falha na rede e sem cache para:', request.url);
       });
-
       return cachedResponse || fetchPromise;
     })
   );
