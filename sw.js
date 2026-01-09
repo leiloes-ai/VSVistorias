@@ -1,7 +1,7 @@
-console.log('[SW] Service Worker Carregado com Sucesso.');
+console.log('[SW] Service Worker v1.18.0 - Inicializando diagnóstico...');
 
-// Service Worker Version: v1.17.1
-const VERSION = 'v1.17.1';
+// Service Worker Version: v1.18.0
+const VERSION = 'v1.18.0';
 const CACHE_NAME = `gestorpro-cache-${VERSION}`;
 
 const APP_SHELL_URLS = [
@@ -43,9 +43,11 @@ onBackgroundMessage(messaging, (payload) => {
 
 // INSTALL: Cache imediato do App Shell
 self.addEventListener('install', (event) => {
+  console.log(`[SW] Instalando versão ${VERSION}...`);
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
+      console.log('[SW] Cache Shell iniciado.');
       return cache.addAll(APP_SHELL_URLS);
     })
   );
@@ -53,14 +55,21 @@ self.addEventListener('install', (event) => {
 
 // ACTIVATE: Limpeza de caches velhos
 self.addEventListener('activate', (event) => {
+  console.log(`[SW] Ativando versão ${VERSION} e limpando caches antigos.`);
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
           .filter((name) => name.startsWith('gestorpro-cache-') && name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
+          .map((name) => {
+              console.log(`[SW] Removendo cache obsoleto: ${name}`);
+              return caches.delete(name);
+          })
       );
-    }).then(() => self.clients.claim())
+    }).then(() => {
+        console.log('[SW] Agora controlando a página.');
+        return self.clients.claim();
+    })
   );
 });
 
@@ -70,12 +79,12 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// FETCH: Estratégia Stale-While-Revalidate para Shell e Cache-First para imagens
+// FETCH: Estratégia Stale-While-Revalidate
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Ignorar chamadas do Firebase e APIs externas
+  // Ignorar chamadas do Firebase e APIs externas para não interferir no Auth/Firestore
   if (url.hostname.includes('googleapis.com') || url.hostname.includes('firebaseapp.com') || url.hostname.includes('gstatic.com')) {
     return;
   }
@@ -92,11 +101,11 @@ self.addEventListener('fetch', (event) => {
           });
         }
         return networkResponse;
-      }).catch(() => {
-          // Silenciosamente falha se estiver offline e sem cache
+      }).catch((err) => {
+          if (cachedResponse) return cachedResponse;
+          console.warn('[SW] Falha na rede e sem cache para:', request.url);
       });
 
-      // Retorna o cache imediatamente se houver, ou espera a rede
       return cachedResponse || fetchPromise;
     })
   );

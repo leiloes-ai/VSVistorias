@@ -1,7 +1,7 @@
 import React, { useState, useContext, useRef, useEffect } from 'react';
 import { AppContext } from '../contexts/AppContext.tsx';
 import { Settings as SettingsType, SettingCategory, ThemePalette, TextPalette, Theme } from '../types.ts';
-import { AddIcon, DeleteIcon, EditIcon, ArrowUpIcon, ArrowDownIcon, InstallIcon, CheckCircleIcon } from '../components/Icons.tsx';
+import { AddIcon, DeleteIcon, EditIcon, ArrowUpIcon, ArrowDownIcon, InstallIcon, CheckCircleIcon, ClockIcon } from '../components/Icons.tsx';
 import ConfirmationDialog from '../components/ConfirmationDialog.tsx';
 import Modal from '../components/Modal.tsx';
 import DebugTerminal from '../components/DebugTerminal.tsx';
@@ -52,10 +52,15 @@ const Settings: React.FC = () => {
     const { 
         settings, updateSettings, appointments, user, logo, updateLogo,
         theme, setTheme, themePalette, setThemePalette, textPalette, setTextPalette,
-        installPromptEvent, triggerInstallPrompt, isStandalone
+        installPromptEvent, triggerInstallPrompt, isStandalone, isOnline
     } = useContext(AppContext);
     
     const isAdminOrMaster = user?.roles.includes('master') || user?.roles.includes('admin');
+    
+    // FIX: Defined missing 'canEdit' and 'canUpdate' variables based on user permissions for the settings module.
+    const canEdit = user?.permissions.settings === 'edit';
+    const canUpdate = user?.permissions.settings === 'edit' || user?.permissions.settings === 'update';
+    
     const [activeTab, setActiveTab] = useState<Tab>(isAdminOrMaster ? 'general' : 'appearance');
     const [localSettings, setLocalSettings] = useState<SettingsType>(settings);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -68,10 +73,42 @@ const Settings: React.FC = () => {
     const [itemName, setItemName] = useState('');
     const [itemToDelete, setItemToDelete] = useState<{ key: SettingKey; item: SettingCategory } | null>(null);
 
-    const canEdit = user?.permissions.settings === 'edit';
-    const canUpdate = user?.permissions.settings === 'update' || canEdit;
+    // PWA Health State
+    const [swState, setSwState] = useState<'checking' | 'active' | 'none' | 'unsupported'>('checking');
+    const [cacheInfo, setCacheInfo] = useState<string>('Verificando...');
 
-    useEffect(() => { setLocalSettings(settings); }, [settings]);
+    useEffect(() => {
+        setLocalSettings(settings);
+    }, [settings]);
+
+    useEffect(() => {
+        if (activeTab === 'application') {
+            checkPWAHealth();
+        }
+    }, [activeTab]);
+
+    const checkPWAHealth = async () => {
+        if (!('serviceWorker' in navigator)) {
+            setSwState('unsupported');
+            return;
+        }
+
+        try {
+            const registration = await navigator.serviceWorker.getRegistration();
+            if (registration && registration.active) {
+                setSwState('active');
+            } else {
+                setSwState('none');
+            }
+
+            if ('caches' in window) {
+                const keys = await caches.keys();
+                setCacheInfo(`${keys.length} versão(ões) em cache`);
+            }
+        } catch (e) {
+            setSwState('none');
+        }
+    };
 
     if (!user || user?.permissions.settings === 'hidden') {
         return (
@@ -255,38 +292,81 @@ const Settings: React.FC = () => {
     const renderApplicationSettings = () => {
         return (
             <div className="space-y-6">
-                <div className="bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800 p-6 rounded-2xl">
-                    <div className="flex flex-col items-center text-center">
-                        <div className="h-16 w-16 bg-primary-100 dark:bg-primary-800 rounded-2xl flex items-center justify-center text-primary-600 dark:text-primary-400 mb-4">
-                            <InstallIcon />
-                        </div>
-                        <h3 className="text-xl font-bold text-gray-800 dark:text-white">Gerenciar Aplicativo</h3>
-                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 max-w-xs">
-                            {isStandalone ? 'O aplicativo já está instalado e rodando em modo nativo.' : 'Clique no botão abaixo para instalar o sistema como um aplicativo no seu dispositivo.'}
-                        </p>
-                        
-                        <div className="mt-6 w-full max-w-sm">
-                            {isStandalone ? (
-                                <div className="flex flex-col items-center gap-2 text-green-600 dark:text-green-400 font-bold p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-green-100 dark:border-green-900/30">
-                                   <CheckCircleIcon />
-                                   <span>Sistema Instalado</span>
-                                </div>
-                            ) : (
-                                <button
-                                    onClick={triggerInstallPrompt}
-                                    disabled={!installPromptEvent}
-                                    className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary-600 text-white rounded-xl shadow-lg hover:bg-primary-700 transition-all transform active:scale-95 font-bold text-lg disabled:opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                                >
-                                    <InstallIcon />
-                                    {installPromptEvent ? 'Instalar Agora' : 'Aguardando Navegador...'}
-                                </button>
-                            )}
-                        </div>
-                        {!isStandalone && !installPromptEvent && (
-                            <p className="mt-4 text-xs text-gray-400 italic">
-                                Nota: Se o botão não estiver ativo, use o menu "Adicionar à tela de início" do seu navegador.
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Painel de Instalação */}
+                    <div className="bg-primary-50 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-800 p-6 rounded-2xl">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="h-16 w-16 bg-primary-100 dark:bg-primary-800 rounded-2xl flex items-center justify-center text-primary-600 dark:text-primary-400 mb-4">
+                                <InstallIcon />
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-800 dark:text-white uppercase tracking-tighter">Instalação</h3>
+                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 max-w-xs uppercase font-black">
+                                {isStandalone ? 'App rodando em modo nativo' : 'Adicione à sua tela inicial para acesso offline'}
                             </p>
-                        )}
+                            
+                            <div className="mt-6 w-full">
+                                {isStandalone ? (
+                                    <div className="flex flex-col items-center gap-2 text-green-600 dark:text-green-400 font-black p-4 bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-green-100 dark:border-green-900/30 uppercase text-[10px] tracking-widest">
+                                       <CheckCircleIcon />
+                                       <span>Aplicativo Instalado</span>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={triggerInstallPrompt}
+                                        disabled={!installPromptEvent}
+                                        className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary-600 text-white rounded-xl shadow-lg hover:bg-primary-700 transition-all transform active:scale-95 font-black text-xs uppercase tracking-widest disabled:opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                    >
+                                        <InstallIcon />
+                                        {installPromptEvent ? 'Instalar Agora' : 'PWA Indisponível'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Painel de Diagnóstico */}
+                    <div className="bg-gray-50 dark:bg-gray-900/20 border border-gray-100 dark:border-gray-800 p-6 rounded-2xl">
+                        <h3 className="text-sm font-black text-gray-800 dark:text-white uppercase tracking-widest mb-4">Saúde do PWA</h3>
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50">
+                                <span className="text-[10px] font-black text-gray-500 uppercase">Conexão</span>
+                                <span className={`flex items-center gap-1.5 text-[10px] font-black uppercase ${isOnline ? 'text-green-500' : 'text-red-500'}`}>
+                                    <div className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-500 shadow-[0_0_5px_#22c55e]' : 'bg-red-500 animate-pulse'}`}></div>
+                                    {isOnline ? 'Online' : 'Offline'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50">
+                                <span className="text-[10px] font-black text-gray-500 uppercase">Service Worker</span>
+                                <span className={`text-[10px] font-black uppercase ${swState === 'active' ? 'text-green-500' : 'text-amber-500'}`}>
+                                    {swState === 'active' ? 'Ativo & Rodando' : swState === 'checking' ? 'Verificando...' : 'Inativo'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50">
+                                <span className="text-[10px] font-black text-gray-500 uppercase">Modo Offline</span>
+                                <span className="text-[10px] font-black text-primary-500 uppercase">{cacheInfo}</span>
+                            </div>
+                            <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50">
+                                <span className="text-[10px] font-black text-gray-500 uppercase">Interface</span>
+                                <span className="text-[10px] font-black text-gray-700 dark:text-gray-300 uppercase">{isStandalone ? 'App Standalone' : 'Navegador Web'}</span>
+                            </div>
+                        </div>
+                        
+                        <button 
+                            onClick={checkPWAHealth}
+                            className="mt-4 w-full py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                        >
+                            Atualizar Diagnóstico
+                        </button>
+                    </div>
+                </div>
+
+                <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/50 rounded-xl">
+                    <div className="flex gap-3">
+                        <div className="text-amber-600 flex-shrink-0"><ClockIcon /></div>
+                        <div>
+                            <p className="text-xs font-black text-amber-800 dark:text-amber-400 uppercase tracking-tighter">Dica de Teste:</p>
+                            <p className="text-[11px] text-amber-700 dark:text-amber-500 mt-1">Para testar o modo offline, desative o Wi-Fi. Se o sistema continuar funcionando e exibindo os dados, o PWA está operando corretamente através do Cache Storage.</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -297,11 +377,11 @@ const Settings: React.FC = () => {
         <>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Configurações</h1>
-                    <p className="mt-1 text-gray-600 dark:text-gray-400">Personalize o comportamento e visual do seu sistema.</p>
+                    <h1 className="text-3xl font-black text-gray-800 dark:text-white tracking-tighter">Configurações</h1>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 font-medium">Painel de controle de preferências do sistema.</p>
                 </div>
                 {canUpdate && activeTab !== 'application' && (
-                    <button onClick={handleSave} className="px-6 py-2 bg-primary-600 text-white rounded-lg shadow-lg hover:bg-primary-700 transition-all font-bold w-full sm:w-auto">
+                    <button onClick={handleSave} className="px-6 py-2.5 bg-primary-600 text-white rounded-xl shadow-lg hover:bg-primary-700 transition-all font-black text-xs uppercase tracking-widest w-full sm:w-auto">
                         Salvar Alterações
                     </button>
                 )}
@@ -310,14 +390,14 @@ const Settings: React.FC = () => {
             <div className="border-b border-gray-200 dark:border-gray-700 mb-6 overflow-x-auto no-scrollbar">
                 <nav className="-mb-px flex space-x-6 min-w-max pb-1">
                     {visibleTabs.map(tab => (
-                       <button key={tab.id} onClick={() => setActiveTab(tab.id as Tab)} className={`py-3 px-1 border-b-2 font-bold text-sm transition-all ${activeTab === tab.id ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                       <button key={tab.id} onClick={() => setActiveTab(tab.id as Tab)} className={`py-3 px-1 border-b-2 font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === tab.id ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
                            {tab.label}
                        </button>
                     ))}
                 </nav>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700/50">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-[2rem] shadow-xl border border-gray-100 dark:border-gray-700/50">
                 {activeTab === 'general' && renderGeneralSettings()}
                 {activeTab === 'layout' && renderLayoutSettings()}
                 {activeTab === 'appearance' && renderAppearanceSettings()}
