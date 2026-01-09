@@ -1,7 +1,7 @@
-// GESTORPRO SERVICE WORKER - ATUALIZAÇÃO FORÇADA DEPLOY V1.18.2
-console.log('[SW] Service Worker v1.18.2 - Inicializando...');
+// GESTORPRO SERVICE WORKER - ATUALIZAÇÃO V1.18.3
+console.log('[SW] Service Worker v1.18.3 - Inicializando...');
 
-const VERSION = 'v1.18.2';
+const VERSION = 'v1.18.3';
 const CACHE_NAME = `gestorpro-cache-${VERSION}`;
 
 const APP_SHELL_URLS = [

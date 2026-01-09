@@ -113,7 +113,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         navigator.serviceWorker.register(swUrl, { scope: '/', type: 'module' })
             .then(registration => {
                 setSwRegistration(registration);
-                console.info("PWA: Service Worker registrado.");
+                console.info("PWA: Service Worker registrado com sucesso.");
                 registration.onupdatefound = () => {
                     const worker = registration.installing;
                     if (worker) worker.onstatechange = () => {
@@ -121,7 +121,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     };
                 };
             }).catch(err => {
-                console.error("PWA: Falha no registro inicial:", err.message);
+                console.error("PWA: Erro no registro:", err.message);
             });
     }
 
@@ -146,7 +146,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               const keys = await caches.keys();
               for (const key of keys) { await caches.delete(key); }
           }
-          return { success: true, message: "PWA reparado! O registro foi forçado. Se o botão de instalar não aparecer, recarregue com Ctrl+F5." };
+          return { success: true, message: "PWA reparado! O registro foi forçado. Aguarde alguns segundos e recarregue com Ctrl+F5." };
       } catch (err: any) {
           return { success: false, message: `Erro no reparo: ${err.message}` };
       }
