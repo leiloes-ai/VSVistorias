@@ -1,8 +1,8 @@
-// GESTORPRO SERVICE WORKER - V1.26.0
-// GESTORPRO-SW-SIGNATURE: ACTIVE
-// Data: 09/01/2026 - CORREÇÃO DE ROTEAMENTO E MIME
+// GESTORPRO SERVICE WORKER - V1.27.0
+// GESTORPRO-SW-SIGNATURE: VALID-JS-FILE
+// Data: 09/01/2026 - CORREÇÃO DE MIME TYPE EM SPA
 
-const VERSION = 'v1.26.0';
+const VERSION = 'v1.27.0';
 const CACHE_NAME = `gestorpro-cache-${VERSION}`;
 
 const logToApp = (message, level = 'info') => {
@@ -11,16 +11,13 @@ const logToApp = (message, level = 'info') => {
   });
 };
 
-console.log(`%c[SW] ${VERSION} - Iniciado`, 'color: #10b981; font-weight: bold;');
+console.log(`%c[SW] ${VERSION} - Operacional`, 'color: #3b82f6; font-weight: bold;');
 
 const APP_SHELL = [
   '/',
   '/index.html',
-  '/index.css',
-  '/index.tsx',
   '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png'
+  '/icon-192.png'
 ];
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
@@ -40,14 +37,13 @@ const messaging = getMessaging(firebaseApp);
 
 onBackgroundMessage(messaging, (payload) => {
   self.registration.showNotification(payload.notification?.title || 'GestorPRO', {
-    body: payload.notification?.body || 'Nova atualização no sistema.',
+    body: payload.notification?.body || 'Nova notificação do sistema.',
     icon: '/icon-192.png',
     badge: '/icon-192.png'
   });
 });
 
 self.addEventListener('install', (event) => {
-  logToApp(`Instalando versão ${VERSION}...`);
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
@@ -55,10 +51,9 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  logToApp(`Ativando versão ${VERSION} e limpando caches.`);
   event.waitUntil(
     caches.keys().then((keys) => Promise.all(
-      keys.filter(k => k !== CACHE_NAME && k.startsWith('gestorpro-cache-')).map(k => caches.delete(k))
+      keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
     )).then(() => self.clients.claim())
   );
 });
@@ -73,12 +68,12 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
   
-  if (url.hostname.includes('google') || url.hostname.includes('firebase') || url.hostname.includes('vercel') || url.search.includes('v=')) return;
+  if (url.hostname.includes('google') || url.hostname.includes('firebase') || url.hostname.includes('vercel')) return;
 
   event.respondWith(
     caches.match(event.request).then((res) => {
       return res || fetch(event.request).then((networkRes) => {
-        if (!networkRes || networkRes.status !== 200 || networkRes.type !== 'basic') return networkRes;
+        if (!networkRes || networkRes.status !== 200) return networkRes;
         const cacheCopy = networkRes.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cacheCopy));
         return networkRes;
