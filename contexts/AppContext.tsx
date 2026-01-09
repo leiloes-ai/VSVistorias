@@ -100,8 +100,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const checkFile = await fetch('/sw.js', { method: 'HEAD', cache: 'no-store' }).catch(() => null);
             
             if (checkFile && checkFile.ok) {
-                const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-                console.info("PWA: Service Worker v1.24.0 registrado.");
+                // IMPORTANTE: Adicionado { type: 'module' } para suportar os imports no sw.js
+                const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' });
+                console.info("PWA: Service Worker v1.25.0 registrado com sucesso (Modo Módulo).");
 
                 registration.addEventListener('updatefound', () => {
                     const newWorker = registration.installing;
@@ -114,8 +115,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     }
                 });
             } else {
-                console.error(`PWA: Arquivo /sw.js não localizado no servidor (Erro 404).`);
-                // Auto-reparo opcional: se o erro persistir, limpa o registro antigo que pode estar "preso"
+                const status = checkFile ? checkFile.status : 'FALHA DE REDE';
+                console.error(`PWA: Arquivo /sw.js inacessível. Status: ${status}. Verifique o servidor/vercel.json.`);
+                // Limpeza preventiva em caso de erro 404 persistente (limpa registros fantasmagóricos)
                 const regs = await navigator.serviceWorker.getRegistrations();
                 for (let r of regs) await r.unregister();
             }

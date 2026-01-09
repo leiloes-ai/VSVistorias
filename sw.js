@@ -1,9 +1,16 @@
-// GESTORPRO SERVICE WORKER - V1.24.0
-// Data: 09/01/2026 - ESTABILIZAÇÃO PWA
-const VERSION = 'v1.24.0';
+// GESTORPRO SERVICE WORKER - V1.25.0
+// Data: 09/01/2026 - CORREÇÃO 404 E MIME TYPE
+const VERSION = 'v1.25.0';
 const CACHE_NAME = `gestorpro-cache-${VERSION}`;
 
-console.log(`%c[SW] ${VERSION} - Operacional`, 'color: #10b981; font-weight: bold;');
+// Canais de log para o Terminal de Debug do App
+const logToApp = (message, level = 'info') => {
+  self.clients.matchAll().then(clients => {
+    clients.forEach(client => client.postMessage({ type: 'SW_LOG', level, message }));
+  });
+};
+
+console.log(`%c[SW] ${VERSION} - Módulo Ativo`, 'color: #3b82f6; font-weight: bold;');
 
 const APP_SHELL = [
   '/',
@@ -39,6 +46,7 @@ onBackgroundMessage(messaging, (payload) => {
 });
 
 self.addEventListener('install', (event) => {
+  logToApp(`Instalando versão ${VERSION}...`);
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
@@ -46,14 +54,14 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
+  logToApp(`Ativando versão ${VERSION} e limpando caches antigos.`);
   event.waitUntil(
     caches.keys().then((keys) => Promise.all(
-      keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
+      keys.filter(k => k !== CACHE_NAME && k.startsWith('gestorpro-cache-')).map(k => caches.delete(k))
     )).then(() => self.clients.claim())
   );
 });
 
-// Listener para mensagens do App (Heartbeat)
 self.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'PING') {
         event.ports[0].postMessage({ type: 'PONG', version: VERSION });
@@ -64,12 +72,15 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
   
+  // Ignorar chamadas de API e Firebase para não corromper o cache do shell
   if (url.hostname.includes('google') || url.hostname.includes('firebase') || url.hostname.includes('vercel')) return;
 
   event.respondWith(
     caches.match(event.request).then((res) => {
       return res || fetch(event.request).then((networkRes) => {
         if (!networkRes || networkRes.status !== 200 || networkRes.type !== 'basic') return networkRes;
+        
+        // Só cachear o que for do próprio domínio
         const cacheCopy = networkRes.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cacheCopy));
         return networkRes;
