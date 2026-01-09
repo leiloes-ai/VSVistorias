@@ -96,40 +96,46 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (window.location.protocol === 'blob:') return;
 
         try {
-            // VERIFICAÇÃO SIMPLES SEM QUERY STRING PARA EVITAR 404 POR REWRITES DE SERVIDOR
-            const checkFile = await fetch('/sw.js', { method: 'GET', cache: 'no-store' }).catch(() => null);
+            // TESTE DE CONTEÚDO REAL DO ARQUIVO
+            const testFetch = await fetch('/sw.js', { method: 'GET', cache: 'no-store' }).catch(() => null);
             
-            if (checkFile && checkFile.ok) {
-                const text = await checkFile.clone().text();
+            if (testFetch && testFetch.ok) {
+                const contentType = testFetch.headers.get('content-type') || '';
+                const text = await testFetch.clone().text();
                 
-                // Se detectar HTML, o servidor está servindo a página principal no lugar do JS
-                if (text.trim().startsWith('<!') || text.trim().startsWith('<html')) {
-                    console.error("PWA: Servidor redirecionou /sw.js para o index.html.");
+                if (contentType.includes('text/html') || text.trim().startsWith('<!')) {
+                    console.error(`PWA Erro: Servidor retornou HTML (${contentType}) em vez de JS. A regra de redirecionamento SPA está capturando o arquivo.`);
+                    // Limpeza de segurança para evitar comportamentos erráticos
+                    const regs = await navigator.serviceWorker.getRegistrations();
+                    for (let r of regs) await r.unregister();
                     return;
                 }
 
-                const registration = await navigator.serviceWorker.register('/sw.js', { 
+                if (!text.includes('GESTORPRO-SW-SIGNATURE')) {
+                    console.warn("PWA: Arquivo sw.js encontrado mas assinatura de integridade falhou.");
+                    return;
+                }
+
+                const registration = await navigator.serviceWorker.register('/sw.js?v=1.30.0', { 
                     scope: '/', 
                     type: 'module' 
                 });
                 
-                console.info("PWA: Service Worker v1.29.0 registrado.");
+                console.info("PWA: Service Worker v1.30.0 registrado com sucesso.");
 
-                registration.addEventListener('updatefound', () => {
-                    const newWorker = registration.installing;
-                    if (newWorker) {
-                        newWorker.addEventListener('statechange', () => {
-                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                registration.onupdatefound = () => {
+                    const installingWorker = registration.installing;
+                    if (installingWorker) {
+                        installingWorker.onstatechange = () => {
+                            if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
                                 setIsUpdateAvailable(true);
                             }
-                        });
+                        };
                     }
-                });
-            } else {
-                console.warn(`PWA: sw.js não encontrado (Status ${checkFile?.status}).`);
+                };
             }
         } catch (e: any) {
-            console.warn("PWA Error:", e.message);
+            console.warn("PWA Check Error:", e.message);
         }
     };
 
@@ -153,9 +159,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
        }
        localStorage.clear();
        setTimeout(() => window.location.reload(), 300);
-       return { success: true, message: "Ambiente limpo. Reiniciando..." };
+       return { success: true, message: "Ambiente PWA limpo. Reiniciando..." };
      } catch (e: any) {
-       return { success: false, message: "Falha: " + e.message };
+       return { success: false, message: "Falha na reparação: " + e.message };
      }
   };
 

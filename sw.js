@@ -1,24 +1,9 @@
-// GESTORPRO SERVICE WORKER - V1.29.0
-// GESTORPRO-SW-SIGNATURE: VALID-SERVICE-WORKER-V1.29.0
-// Data: 09/01/2026 - CORREÇÃO DE ROTA ESTÁTICA
+// GESTORPRO SERVICE WORKER - V1.30.0
+// GESTORPRO-SW-SIGNATURE: VALID-V1.30.0-JS
+// Data: 09/01/2026 - CORREÇÃO DE MIME REDIRECT
 
-const VERSION = 'v1.29.0';
+const VERSION = 'v1.30.0';
 const CACHE_NAME = `gestorpro-cache-${VERSION}`;
-
-const logToApp = (message, level = 'info') => {
-  self.clients.matchAll().then(clients => {
-    clients.forEach(client => client.postMessage({ type: 'SW_LOG', level, message }));
-  });
-};
-
-console.log(`%c[SW] ${VERSION} - Prontidão`, 'color: #3b82f6; font-weight: bold;');
-
-const APP_SHELL = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon-192.png'
-];
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 import { getMessaging, onBackgroundMessage } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-sw.js";
@@ -37,7 +22,7 @@ const messaging = getMessaging(firebaseApp);
 
 onBackgroundMessage(messaging, (payload) => {
   self.registration.showNotification(payload.notification?.title || 'GestorPRO', {
-    body: payload.notification?.body || 'Nova atualização.',
+    body: payload.notification?.body || 'Nova atividade detectada.',
     icon: '/icon-192.png',
     badge: '/icon-192.png'
   });
@@ -46,7 +31,7 @@ onBackgroundMessage(messaging, (payload) => {
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(['/', '/index.html', '/manifest.json', '/icon-192.png']))
   );
 });
 
@@ -56,12 +41,6 @@ self.addEventListener('activate', (event) => {
       keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
     )).then(() => self.clients.claim())
   );
-});
-
-self.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'PING') {
-        event.ports[0].postMessage({ type: 'PONG', version: VERSION });
-    }
 });
 
 self.addEventListener('fetch', (event) => {
