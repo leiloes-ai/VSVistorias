@@ -13,19 +13,10 @@
           "value": "/"
         },
         {
-            "key": "Content-Type",
-            "value": "application/javascript"
+          "key": "Content-Type",
+          "value": "application/javascript"
         }
       ]
-    },
-    {
-        "source": "/manifest.json",
-        "headers": [
-            {
-                "key": "Content-Type",
-                "value": "application/json"
-            }
-        ]
     }
   ],
   "rewrites": [
@@ -36,6 +27,10 @@
     {
       "source": "/manifest.json",
       "destination": "/manifest.json"
+    },
+    {
+      "source": "/icon-(.*).png",
+      "destination": "/icon-$1.png"
     },
     {
       "source": "/(.*)",

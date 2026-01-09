@@ -108,16 +108,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const isSandbox = window.location.protocol === 'blob:';
 
     if (!isSandbox && isSecure && 'serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        // IMPORTANTE: type: 'module' é necessário se o sw.js usar declarações 'import'
+        navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' })
             .then(registration => {
                 setSwRegistration(registration);
+                console.info("PWA: Service Worker registrado com sucesso como módulo.");
                 registration.onupdatefound = () => {
                     const worker = registration.installing;
                     if (worker) worker.onstatechange = () => {
                         if (worker.state === 'installed' && navigator.serviceWorker.controller) setIsUpdateAvailable(true);
                     };
                 };
-            }).catch(err => console.error("SW Register Error:", err));
+            }).catch(err => {
+                console.error("PWA: Erro crítico no registro do SW:", err.message);
+            });
     }
 
     const handlePrompt = (e: Event) => { e.preventDefault(); setInstallPromptEvent(e); };
@@ -126,27 +130,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   const repairPWA = async () => {
-      console.info("Reparo de PWA: Iniciando rotina de correção...");
+      console.info("Reparo de PWA: Iniciando rotina de correção forcada...");
       try {
           if ('serviceWorker' in navigator) {
               const registrations = await navigator.serviceWorker.getRegistrations();
               for (const registration of registrations) {
                   await registration.unregister();
-                  console.log("Reparo: Service Worker antigo removido.");
+                  console.log("Reparo: Registro antigo removido.");
               }
-              const newRegistration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+              // Tenta registrar novamente garantindo o tipo módulo
+              const newRegistration = await navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' });
               setSwRegistration(newRegistration);
-              console.log("Reparo: Novo Service Worker registrado.");
+              console.log("Reparo: Novo registro de módulo concluído.");
           }
           if ('caches' in window) {
               const keys = await caches.keys();
               for (const key of keys) { await caches.delete(key); }
               console.log("Reparo: Cache limpo.");
           }
-          return { success: true, message: "PWA reparado com sucesso! Se os erros persistirem, reinicie o navegador." };
+          return { success: true, message: "PWA reparado! O navegador agora reconhece o Service Worker. Se o botão de instalar não aparecer, recarregue a página (F5)." };
       } catch (err: any) {
           console.error("Erro no Reparo PWA:", err);
-          return { success: false, message: `Falha no reparo: ${err.message}` };
+          return { success: false, message: `Falha no reparo: ${err.message}. Verifique se o arquivo /sw.js está acessível no seu navegador.` };
       }
   };
 

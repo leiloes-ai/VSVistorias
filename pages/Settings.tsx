@@ -72,7 +72,7 @@ const Settings: React.FC = () => {
     const [itemToDelete, setItemToDelete] = useState<{ key: SettingKey; item: SettingCategory } | null>(null);
 
     // PWA Health State
-    const [swState, setSwState] = useState<'checking' | 'active' | 'none' | 'unsupported' | 'blocked'>('checking');
+    const [swState, setSwState] = useState<'checking' | 'active' | 'none' | 'unsupported' | 'blocked' | 'error404'>('checking');
     const [cacheInfo, setCacheInfo] = useState<string>('Verificando...');
     const [isSandboxEnv, setIsSandboxEnv] = useState(false);
     const [isRepairing, setIsRepairing] = useState(false);
@@ -103,6 +103,14 @@ const Settings: React.FC = () => {
         }
 
         try {
+            // Teste de acessibilidade de rede para o arquivo sw.js
+            const swResponse = await fetch('/sw.js', { method: 'HEAD', cache: 'no-store' }).catch(() => null);
+            if (swResponse && swResponse.status === 404) {
+                setSwState('error404');
+                setCacheInfo('sw.js não encontrado');
+                return;
+            }
+
             const registration = await navigator.serviceWorker.getRegistration();
             if (registration && registration.active) {
                 setSwState('active');
@@ -156,7 +164,7 @@ Prompt Disponível: ${installPromptEvent ? 'SIM' : 'NÃO'}
 Requisitos SSL: ${window.location.protocol === 'https:' ? 'OK' : 'FALHA'}
 
 --- ANÁLISE DE ERROS ---
-${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Service Workers e instalação em previews de desenvolvimento. Teste o PWA em um domínio real HTTPS." : swState === 'none' ? "ERRO: Service Worker não registrado. Use o botão 'REPARAR REGISTRO' para forçar a ativação." : "Ambiente nominal."}
+${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Service Workers e instalação em previews de desenvolvimento." : swState === 'error404' ? "ERRO CRÍTICO: O arquivo /sw.js está retornando 404 (Não Encontrado). Verifique as configurações do Vercel e se o arquivo está na raiz do projeto." : swState === 'none' ? "ERRO: Service Worker não registrado. Use o botão 'REPARAR REGISTRO'." : "Ambiente nominal."}
 ==========================================
         `.trim();
 
@@ -360,6 +368,20 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                     </div>
                 )}
 
+                {swState === 'error404' && !isSandboxEnv && (
+                    <div className="p-4 bg-red-50 dark:bg-red-900/20 border-2 border-red-500/30 rounded-2xl">
+                        <div className="flex gap-3">
+                            <div className="text-red-600"><ExclamationTriangleIcon /></div>
+                            <div>
+                                <h4 className="text-xs font-black text-red-800 dark:text-red-400 uppercase tracking-widest">Erro Crítico de Arquivo</h4>
+                                <p className="text-[11px] text-red-700 dark:text-red-500 mt-1 leading-relaxed">
+                                    O servidor retornou <b>404 - Not Found</b> ao buscar o arquivo <code className="bg-red-100 dark:bg-red-800 px-1 rounded">/sw.js</code>. O PWA não pode ser instalado sem este arquivo. Verifique se o deploy no Vercel foi concluído corretamente.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Painel de Instalação */}
                     <div className="bg-primary-50 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-800 p-6 rounded-2xl">
@@ -381,11 +403,11 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                                 ) : (
                                     <button
                                         onClick={triggerInstallPrompt}
-                                        disabled={!installPromptEvent || isSandboxEnv}
+                                        disabled={!installPromptEvent || isSandboxEnv || swState === 'error404'}
                                         className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary-600 text-white rounded-xl shadow-lg hover:bg-primary-700 transition-all transform active:scale-95 font-black text-xs uppercase tracking-widest disabled:opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed"
                                     >
                                         <InstallIcon />
-                                        {isSandboxEnv ? 'Bloqueado (Sandbox)' : installPromptEvent ? 'Instalar Agora' : 'Aguardando Navegador...'}
+                                        {isSandboxEnv ? 'Bloqueado (Sandbox)' : swState === 'error404' ? 'Erro de Arquivo (404)' : installPromptEvent ? 'Instalar Agora' : 'Aguardando Navegador...'}
                                     </button>
                                 )}
                             </div>
@@ -405,8 +427,8 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                             </div>
                             <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50">
                                 <span className="text-[10px] font-black text-gray-500 uppercase">Service Worker</span>
-                                <span className={`text-[10px] font-black uppercase ${swState === 'active' ? 'text-green-500' : swState === 'blocked' ? 'text-orange-500' : 'text-amber-500'}`}>
-                                    {swState === 'active' ? 'Ativo & Rodando' : swState === 'blocked' ? 'Bloqueado (Sandbox)' : swState === 'checking' ? 'Verificando...' : 'Inativo / Off'}
+                                <span className={`text-[10px] font-black uppercase ${swState === 'active' ? 'text-green-500' : swState === 'error404' ? 'text-red-500' : swState === 'blocked' ? 'text-orange-500' : 'text-amber-500'}`}>
+                                    {swState === 'active' ? 'Ativo & Rodando' : swState === 'error404' ? 'ERRO (sw.js não existe)' : swState === 'blocked' ? 'Bloqueado (Sandbox)' : swState === 'checking' ? 'Verificando...' : 'Inativo / Off'}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50">
@@ -423,19 +445,25 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                         
                         <div className="grid grid-cols-2 gap-3 mt-4">
                             <button 
+                                onClick={checkPWAHealth}
+                                className="w-full py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                            >
+                                Re-Testar
+                            </button>
+                            <button 
                                 onClick={handleRepairPWA}
-                                disabled={isRepairing || isSandboxEnv}
+                                disabled={isRepairing || isSandboxEnv || swState === 'error404'}
                                 className="w-full py-2 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-colors disabled:bg-gray-400"
                             >
                                 {isRepairing ? 'Reparando...' : 'Reparar Registro'}
                             </button>
-                            <button 
-                                onClick={handleCopyPWADiagnostic}
-                                className="w-full py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-center justify-center gap-1.5"
-                            >
-                                Copiar Log
-                            </button>
                         </div>
+                        <button 
+                            onClick={handleCopyPWADiagnostic}
+                            className="w-full mt-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-center justify-center gap-1.5"
+                        >
+                            Copiar Log Detalhado
+                        </button>
                     </div>
                 </div>
 
@@ -445,7 +473,7 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                         <div>
                             <p className="text-xs font-black text-amber-800 dark:text-amber-400 uppercase tracking-tighter">Nota sobre Produção:</p>
                             <p className="text-[11px] text-amber-700 dark:text-amber-500 mt-1 leading-relaxed">
-                                Se o Service Worker estiver "Inativo" em ambiente HTTPS, clique em <b>"REPARAR REGISTRO"</b>. Isso forçará o navegador a baixar novamente os arquivos de configuração do PWA e limpar caches corrompidos.
+                                Se o Service Worker estiver "Inativo" em ambiente HTTPS, clique em <b>"REPARAR REGISTRO"</b>. Isso forçará o navegador a baixar novamente os arquivos de configuração do PWA e limpar caches corrompidos. O erro 404 indica que o deploy falhou em incluir o arquivo <code className="bg-amber-100 dark:bg-amber-800 px-1 rounded">sw.js</code> na raiz.
                             </p>
                         </div>
                     </div>
