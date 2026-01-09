@@ -91,25 +91,44 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [themePalette]);
 
   useEffect(() => {
-    const registerSW = async () => {
+    const checkAndRegisterSW = async () => {
         if ('serviceWorker' in navigator && window.location.protocol !== 'blob:') {
             try {
-                // Verificação de segurança: aguarda o load da página
-                window.addEventListener('load', async () => {
-                    try {
-                        const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' });
-                        setSwRegistration(registration);
-                        console.log("PWA: Service Worker v1.22.0 registrado.");
-                    } catch (e: any) {
-                        console.warn("PWA: Registro inicial falhou, tentando fallback...", e.message);
-                    }
-                });
-            } catch (err) {
-                console.error("PWA Critical Error:", err);
+                // TESTE DE ACESSIBILIDADE ANTES DO REGISTRO
+                const response = await fetch('/sw.js', { method: 'HEAD', cache: 'no-store' }).catch(() => null);
+                
+                if (response && response.ok && response.headers.get('content-type')?.includes('javascript')) {
+                    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' });
+                    setSwRegistration(registration);
+                    console.info("PWA: Service Worker v1.23.0 registrado com sucesso.");
+
+                    registration.onupdatefound = () => {
+                        const installingWorker = registration.installing;
+                        if (installingWorker) {
+                            installingWorker.onstatechange = () => {
+                                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    setIsUpdateAvailable(true);
+                                }
+                            };
+                        }
+                    };
+                } else {
+                    const status = response ? response.status : 'Falha de Conexão';
+                    const mime = response ? response.headers.get('content-type') : 'N/A';
+                    console.error(`PWA: Arquivo sw.js inacessível. Status: ${status}, MIME: ${mime}`);
+                }
+            } catch (err: any) {
+                console.error("PWA: Erro crítico no registro:", err.message);
             }
         }
     };
-    registerSW();
+
+    // Aguarda o carregamento completo para não competir com recursos iniciais
+    if (document.readyState === 'complete') {
+        checkAndRegisterSW();
+    } else {
+        window.addEventListener('load', checkAndRegisterSW);
+    }
 
     const handlePrompt = (e: Event) => { e.preventDefault(); setInstallPromptEvent(e); };
     window.addEventListener('beforeinstallprompt', handlePrompt);
@@ -118,6 +137,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const repairPWA = async () => {
      try {
+       console.warn("PWA: Iniciando reparo profundo...");
        if ('serviceWorker' in navigator) {
          const registrations = await navigator.serviceWorker.getRegistrations();
          for(let r of registrations) { await r.unregister(); }
@@ -128,9 +148,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
        }
        localStorage.clear();
        setTimeout(() => window.location.reload(), 500);
-       return { success: true, message: "PWA resetado. Reiniciando..." };
+       return { success: true, message: "PWA resetado. O sistema será reiniciado para nova sincronização." };
      } catch (e: any) {
-       return { success: false, message: "Erro: " + e.message };
+       return { success: false, message: "Erro no reparo: " + e.message };
      }
   };
 

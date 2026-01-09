@@ -35,11 +35,7 @@
       "destination": "/manifest.json"
     },
     {
-      "source": "/(icon-.*\\.png)",
-      "destination": "/$1"
-    },
-    {
-      "source": "/((?!sw\\.js|manifest\\.json|icon-).*)",
+      "source": "/((?!sw\\.js|manifest\\.json|icon-|.*\\.).*)",
       "destination": "/index.html"
     }
   ]
