@@ -109,21 +109,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const isNotBlob = window.location.protocol !== 'blob:';
 
         if (isSecure && isNotBlob) {
-            // REGISTRO LIMPO: Sem parâmetros de query para evitar que o Vercel 
-            // confunda o arquivo físico sw.js com uma rota de app (404).
-            navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' })
-                .then(registration => {
-                    setSwRegistration(registration);
-                    console.info("PWA: Service Worker v1.19.0 registrado.");
-                    registration.onupdatefound = () => {
-                        const worker = registration.installing;
-                        if (worker) worker.onstatechange = () => {
-                            if (worker.state === 'installed' && navigator.serviceWorker.controller) setIsUpdateAvailable(true);
+            // REGISTRO v1.20.0: Limpeza prévia para garantir que o navegador aceite o sw.js físico
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                for (let registration of registrations) {
+                    // Se o escopo for diferente ou houver problemas, desregistra versões instáveis
+                    if (registration.scope !== window.location.origin + '/') {
+                        registration.unregister();
+                    }
+                }
+                
+                navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' })
+                    .then(registration => {
+                        setSwRegistration(registration);
+                        console.info("PWA: Service Worker v1.20.0 registrado com sucesso.");
+                        registration.onupdatefound = () => {
+                            const worker = registration.installing;
+                            if (worker) worker.onstatechange = () => {
+                                if (worker.state === 'installed' && navigator.serviceWorker.controller) setIsUpdateAvailable(true);
+                            };
                         };
-                    };
-                }).catch(err => {
-                    console.error("PWA: Erro no registro:", err.message);
-                });
+                    }).catch(err => {
+                        console.error("PWA Error:", err.message);
+                    });
+            });
         }
     }
 
@@ -133,7 +141,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   const repairPWA = async () => {
-      console.info("PWA: Executando limpeza...");
+      console.info("PWA: Iniciando Reparo Geral...");
       try {
           if ('serviceWorker' in navigator) {
               const registrations = await navigator.serviceWorker.getRegistrations();
@@ -145,7 +153,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               const keys = await caches.keys();
               for (const key of keys) { await caches.delete(key); }
           }
-          return { success: true, message: "PWA Resetado. Por favor, atualize a página manualmente." };
+          return { success: true, message: "Limpeza concluída. Por favor, reinicie o aplicativo." };
       } catch (err: any) {
           return { success: false, message: `Erro no reparo: ${err.message}` };
       }

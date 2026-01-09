@@ -1,8 +1,8 @@
-// GESTORPRO SERVICE WORKER - V1.19.0
-// Data: 09/01/2026 - ESTABILIDADE VERCEL
-console.log('[SW] v1.19.0 ativo.');
+// GESTORPRO SERVICE WORKER - V1.20.0
+// Data: 09/01/2026 - DIAGNÓSTICO INTEGRADO
+console.log('%c[SW] v1.20.0 Detectado e Carregando...', 'color: #3b82f6; font-weight: bold;');
 
-const VERSION = 'v1.19.0';
+const VERSION = 'v1.20.0';
 const CACHE_NAME = `gestorpro-cache-${VERSION}`;
 
 const APP_SHELL_URLS = [
@@ -34,7 +34,7 @@ const messaging = getMessaging(firebaseApp);
 onBackgroundMessage(messaging, (payload) => {
   const notificationTitle = payload.notification?.title || 'GestorPRO';
   const notificationOptions = {
-    body: payload.notification?.body || 'Nova atualização.',
+    body: payload.notification?.body || 'Nova atualização no sistema.',
     icon: '/icon-192.png',
     badge: '/icon-192.png'
   };
@@ -44,7 +44,10 @@ onBackgroundMessage(messaging, (payload) => {
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL_URLS))
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log('[SW] Cache Shell iniciado.');
+      return cache.addAll(APP_SHELL_URLS);
+    })
   );
 });
 
@@ -56,7 +59,10 @@ self.addEventListener('activate', (event) => {
           .filter((name) => name.startsWith('gestorpro-cache-') && name !== CACHE_NAME)
           .map((name) => caches.delete(name))
       );
-    }).then(() => self.clients.claim())
+    }).then(() => {
+        console.log('[SW] Ativado e caches antigos removidos.');
+        return self.clients.claim();
+    })
   );
 });
 
@@ -64,20 +70,30 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   
   const url = new URL(event.request.url);
-  if (url.hostname.includes('googleapis.com') || url.hostname.includes('gstatic.com')) return;
+  // Não interceptar requisições para o Firebase ou Google
+  if (url.hostname.includes('googleapis.com') || url.hostname.includes('gstatic.com') || url.hostname.includes('firebaseapp.com')) return;
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
+      if (cachedResponse) return cachedResponse;
+
+      return fetch(event.request).then((networkResponse) => {
+        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+          return networkResponse;
         }
+
+        const responseToCache = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
+
         return networkResponse;
-      }).catch(() => cachedResponse);
-      return cachedResponse || fetchPromise;
+      }).catch(() => {
+          // Fallback offline para navegação
+          if (event.request.mode === 'navigate') {
+              return caches.match('/');
+          }
+      });
     })
   );
 });

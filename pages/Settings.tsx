@@ -72,7 +72,7 @@ const Settings: React.FC = () => {
     const [itemToDelete, setItemToDelete] = useState<{ key: SettingKey; item: SettingCategory } | null>(null);
 
     // PWA Health State
-    const [swState, setSwState] = useState<'checking' | 'active' | 'none' | 'unsupported' | 'blocked' | 'error404'>('checking');
+    const [swState, setSwState] = useState<'checking' | 'active' | 'none' | 'unsupported' | 'blocked' | 'error404' | 'invalidMime'>('checking');
     const [cacheInfo, setCacheInfo] = useState<string>('Verificando...');
     const [isSandboxEnv, setIsSandboxEnv] = useState(false);
     const [isRepairing, setIsRepairing] = useState(false);
@@ -88,6 +88,7 @@ const Settings: React.FC = () => {
     }, [activeTab]);
 
     const checkPWAHealth = async () => {
+        setSwState('checking');
         const isBlob = window.location.protocol === 'blob:';
         setIsSandboxEnv(isBlob);
 
@@ -103,11 +104,25 @@ const Settings: React.FC = () => {
         }
 
         try {
-            // Teste de acessibilidade de rede para o arquivo sw.js
-            const swResponse = await fetch('/sw.js', { method: 'HEAD', cache: 'no-store' }).catch(() => null);
-            if (swResponse && swResponse.status === 404) {
+            // TESTE DE VISIBILIDADE REAL (BYPASS CACHE)
+            const response = await fetch('/sw.js', { method: 'GET', cache: 'no-store' }).catch(() => null);
+            
+            if (!response) {
                 setSwState('error404');
-                setCacheInfo('sw.js não encontrado');
+                setCacheInfo('Indisponível no Servidor');
+                return;
+            }
+
+            if (response.status === 404) {
+                setSwState('error404');
+                setCacheInfo('sw.js não existe (404)');
+                return;
+            }
+
+            const contentType = response.headers.get('content-type');
+            if (contentType && !contentType.includes('javascript')) {
+                setSwState('invalidMime');
+                setCacheInfo(`MIME Inválido: ${contentType}`);
                 return;
             }
 
@@ -159,12 +174,8 @@ Controlador: ${navigator.serviceWorker.controller ? 'ATIVO' : 'NÃO DETECTADO'}
 Versões: ${cacheKeys.length}
 Keys: ${cacheKeys.join(', ') || 'Nenhum cache encontrado'}
 
---- INSTALAÇÃO ---
-Prompt Disponível: ${installPromptEvent ? 'SIM' : 'NÃO'}
-Requisitos SSL: ${window.location.protocol === 'https:' ? 'OK' : 'FALHA'}
-
 --- ANÁLISE DE ERROS ---
-${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Service Workers e instalação em previews de desenvolvimento." : swState === 'error404' ? "ERRO CRÍTICO: O arquivo /sw.js está retornando 404 (Não Encontrado). Verifique as configurações do Vercel e se o arquivo está na raiz do projeto." : swState === 'none' ? "ERRO: Service Worker não registrado. Use o botão 'REPARAR REGISTRO'." : "Ambiente nominal."}
+${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Service Workers e instalação em previews de desenvolvimento." : swState === 'error404' ? "ERRO CRÍTICO: O arquivo /sw.js está retornando 404. O Vercel pode estar redirecionando para index.html indevidamente." : swState === 'invalidMime' ? "ERRO DE SERVIDOR: O sw.js foi encontrado, mas o servidor está dizendo que ele não é um arquivo Javascript. Verifique vercel.json." : "Ambiente nominal."}
 ==========================================
         `.trim();
 
@@ -368,14 +379,17 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                     </div>
                 )}
 
-                {swState === 'error404' && !isSandboxEnv && (
+                {(swState === 'error404' || swState === 'invalidMime') && !isSandboxEnv && (
                     <div className="p-4 bg-red-50 dark:bg-red-900/20 border-2 border-red-500/30 rounded-2xl">
                         <div className="flex gap-3">
                             <div className="text-red-600"><ExclamationTriangleIcon /></div>
                             <div>
-                                <h4 className="text-xs font-black text-red-800 dark:text-red-400 uppercase tracking-widest">Erro Crítico de Arquivo</h4>
+                                <h4 className="text-xs font-black text-red-800 dark:text-red-400 uppercase tracking-widest">Erro Crítico de Configuração</h4>
                                 <p className="text-[11px] text-red-700 dark:text-red-500 mt-1 leading-relaxed">
-                                    O servidor retornou <b>404 - Not Found</b> ao buscar o arquivo <code className="bg-red-100 dark:bg-red-800 px-1 rounded">/sw.js</code>. O PWA não pode ser instalado sem este arquivo. Verifique se o deploy no Vercel foi concluído corretamente.
+                                    {swState === 'error404' ? 
+                                        "O arquivo /sw.js NÃO EXISTE no servidor. Verifique se o Vercel concluiu o deploy corretamente ou se vercel.json está bloqueando o acesso." : 
+                                        "O sw.js foi encontrado, mas o servidor está informando o tipo de arquivo errado. Verifique os headers no vercel.json."
+                                    }
                                 </p>
                             </div>
                         </div>
@@ -403,11 +417,11 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                                 ) : (
                                     <button
                                         onClick={triggerInstallPrompt}
-                                        disabled={!installPromptEvent || isSandboxEnv || swState === 'error404'}
+                                        disabled={!installPromptEvent || isSandboxEnv || swState === 'error404' || swState === 'invalidMime'}
                                         className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary-600 text-white rounded-xl shadow-lg hover:bg-primary-700 transition-all transform active:scale-95 font-black text-xs uppercase tracking-widest disabled:opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed"
                                     >
                                         <InstallIcon />
-                                        {isSandboxEnv ? 'Bloqueado (Sandbox)' : swState === 'error404' ? 'Erro de Arquivo (404)' : installPromptEvent ? 'Instalar Agora' : 'Aguardando Navegador...'}
+                                        {isSandboxEnv ? 'Bloqueado (Sandbox)' : swState === 'error404' ? 'Arquivo não Encontrado' : installPromptEvent ? 'Instalar Agora' : 'Aguardando Navegador...'}
                                     </button>
                                 )}
                             </div>
@@ -419,16 +433,9 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                         <h3 className="text-sm font-black text-gray-800 dark:text-white uppercase tracking-widest mb-4">Saúde do PWA</h3>
                         <div className="space-y-3">
                             <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50">
-                                <span className="text-[10px] font-black text-gray-500 uppercase">Conexão</span>
-                                <span className={`flex items-center gap-1.5 text-[10px] font-black uppercase ${isOnline ? 'text-green-500' : 'text-red-500'}`}>
-                                    <div className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-500 shadow-[0_0_5px_#22c55e]' : 'bg-red-500 animate-pulse'}`}></div>
-                                    {isOnline ? 'Online' : 'Offline'}
-                                </span>
-                            </div>
-                            <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50">
-                                <span className="text-[10px] font-black text-gray-500 uppercase">Service Worker</span>
-                                <span className={`text-[10px] font-black uppercase ${swState === 'active' ? 'text-green-500' : swState === 'error404' ? 'text-red-500' : swState === 'blocked' ? 'text-orange-500' : 'text-amber-500'}`}>
-                                    {swState === 'active' ? 'Ativo & Rodando' : swState === 'error404' ? 'ERRO (sw.js não existe)' : swState === 'blocked' ? 'Bloqueado (Sandbox)' : swState === 'checking' ? 'Verificando...' : 'Inativo / Off'}
+                                <span className="text-[10px] font-black text-gray-500 uppercase">Status SW</span>
+                                <span className={`text-[10px] font-black uppercase ${swState === 'active' ? 'text-green-500' : swState === 'error404' || swState === 'invalidMime' ? 'text-red-500' : swState === 'blocked' ? 'text-orange-500' : 'text-amber-500'}`}>
+                                    {swState === 'active' ? 'Ativo & Rodando' : swState === 'error404' ? 'ERRO (404)' : swState === 'invalidMime' ? 'MIME INVÁLIDO' : swState === 'checking' ? 'Verificando...' : 'Inativo / Off'}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50">
@@ -436,9 +443,9 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                                 <span className="text-[10px] font-black text-primary-500 uppercase">{cacheInfo}</span>
                             </div>
                             <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50">
-                                <span className="text-[10px] font-black text-gray-500 uppercase">Protocolo</span>
-                                <span className={`text-[10px] font-black uppercase ${isSandboxEnv ? 'text-orange-500' : 'text-gray-400'}`}>
-                                    {isSandboxEnv ? 'blob: (Sandbox)' : window.location.protocol}
+                                <span className="text-[10px] font-black text-gray-500 uppercase">Ambiente</span>
+                                <span className={`text-[10px] font-black uppercase ${isSandboxEnv ? 'text-orange-500' : 'text-green-500'}`}>
+                                    {isSandboxEnv ? 'PREVIEW (Limitado)' : 'PRODUÇÃO'}
                                 </span>
                             </div>
                         </div>
@@ -452,7 +459,7 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                             </button>
                             <button 
                                 onClick={handleRepairPWA}
-                                disabled={isRepairing || isSandboxEnv || swState === 'error404'}
+                                disabled={isRepairing || isSandboxEnv}
                                 className="w-full py-2 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-colors disabled:bg-gray-400"
                             >
                                 {isRepairing ? 'Reparando...' : 'Reparar Registro'}
@@ -471,9 +478,9 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                     <div className="flex gap-3">
                         <div className="text-amber-600 flex-shrink-0"><ClockIcon /></div>
                         <div>
-                            <p className="text-xs font-black text-amber-800 dark:text-amber-400 uppercase tracking-tighter">Nota sobre Produção:</p>
+                            <p className="text-xs font-black text-amber-800 dark:text-amber-400 uppercase tracking-tighter">Nota Técnica:</p>
                             <p className="text-[11px] text-amber-700 dark:text-amber-500 mt-1 leading-relaxed">
-                                Se o Service Worker estiver "Inativo" em ambiente HTTPS, clique em <b>"REPARAR REGISTRO"</b>. Isso forçará o navegador a baixar novamente os arquivos de configuração do PWA e limpar caches corrompidos. O erro 404 indica que o deploy falhou em incluir o arquivo <code className="bg-amber-100 dark:bg-amber-800 px-1 rounded">sw.js</code> na raiz.
+                                O erro 404 geralmente ocorre porque o navegador "memorizou" uma falha de rede antiga. Se o servidor já foi atualizado, clique em <b>"REPARAR REGISTRO"</b> para forçar uma limpeza profunda e re-sincronizar os arquivos.
                             </p>
                         </div>
                     </div>
