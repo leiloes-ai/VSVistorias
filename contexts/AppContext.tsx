@@ -109,11 +109,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const isNotBlob = window.location.protocol !== 'blob:';
 
         if (isSecure && isNotBlob) {
-            // Registro limpo sem extensões de query
-            navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' })
+            // REGISTRO COM CACHE-BUSTER (v=1.18.8)
+            // Isso força o roteador do Vercel a buscar o arquivo novamente e ignora 404s memorizados.
+            const swUrl = `/sw.js?v=1.18.8`;
+            navigator.serviceWorker.register(swUrl, { scope: '/', type: 'module' })
                 .then(registration => {
                     setSwRegistration(registration);
-                    console.info("PWA: Registro bem sucedido.");
+                    console.info("PWA: Service Worker registrado v1.18.8.");
                     registration.onupdatefound = () => {
                         const worker = registration.installing;
                         if (worker) worker.onstatechange = () => {
@@ -121,7 +123,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                         };
                     };
                 }).catch(err => {
-                    console.warn("PWA: Erro inicial no registro. Tentando fallback...", err.message);
+                    console.warn("PWA: Falha no registro. O sistema tentará novamente no próximo acesso.", err.message);
                 });
         }
     }
@@ -137,14 +139,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           if ('serviceWorker' in navigator) {
               const registrations = await navigator.serviceWorker.getRegistrations();
               for (const registration of registrations) { await registration.unregister(); }
-              const newReg = await navigator.serviceWorker.register('/sw.js?r=' + Date.now(), { scope: '/', type: 'module' });
+              const newReg = await navigator.serviceWorker.register('/sw.js?repair=' + Date.now(), { scope: '/', type: 'module' });
               setSwRegistration(newReg);
           }
           if ('caches' in window) {
               const keys = await caches.keys();
               for (const key of keys) { await caches.delete(key); }
           }
-          return { success: true, message: "Limpeza concluída! Aguarde 2 segundos e atualize a página manualmente." };
+          return { success: true, message: "PWA Resetado. Por favor, feche e abra o navegador novamente." };
       } catch (err: any) {
           return { success: false, message: `Erro no reparo: ${err.message}` };
       }
