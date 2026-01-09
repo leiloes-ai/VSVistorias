@@ -19,6 +19,19 @@
           "value": "/"
         }
       ]
+    },
+    {
+      "source": "/manifest.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, must-revalidate"
+        }
+      ]
     }
   ],
   "rewrites": [
@@ -31,7 +44,7 @@
       "destination": "/manifest.json"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!sw\\.js|manifest\\.json|icon-).*)",
       "destination": "/index.html"
     }
   ]

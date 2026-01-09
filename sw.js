@@ -1,8 +1,8 @@
-// GESTORPRO SERVICE WORKER - V1.18.9
-// Data da última modificação: 09/01/2026 - CORREÇÃO DEFINITIVA DE PRIORIDADE VERCEL
-console.log('[SW] v1.18.9 inicializado.');
+// GESTORPRO SERVICE WORKER - V1.19.0
+// Data: 09/01/2026 - ESTABILIDADE VERCEL
+console.log('[SW] v1.19.0 ativo.');
 
-const VERSION = 'v1.18.9';
+const VERSION = 'v1.19.0';
 const CACHE_NAME = `gestorpro-cache-${VERSION}`;
 
 const APP_SHELL_URLS = [
@@ -15,17 +15,7 @@ const APP_SHELL_URLS = [
   '/icon-512.png'
 ];
 
-// Helper para enviar logs para a aplicação principal
-async function logToApp(level, message) {
-    try {
-        const clients = await self.clients.matchAll();
-        clients.forEach(client => {
-            client.postMessage({ type: 'SW_LOG', level, message: `[Internal SW] ${message}` });
-        });
-    } catch (e) {}
-}
-
-// --- Configuração do Firebase Messaging ---
+// Configuração do Firebase Messaging
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 import { getMessaging, onBackgroundMessage } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-sw.js";
 
@@ -44,10 +34,9 @@ const messaging = getMessaging(firebaseApp);
 onBackgroundMessage(messaging, (payload) => {
   const notificationTitle = payload.notification?.title || 'GestorPRO';
   const notificationOptions = {
-    body: payload.notification?.body || 'Nova atualização no sistema.',
+    body: payload.notification?.body || 'Nova atualização.',
     icon: '/icon-192.png',
-    badge: '/icon-192.png',
-    vibrate: [100, 50, 100]
+    badge: '/icon-192.png'
   };
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
@@ -71,29 +60,19 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-});
-
 self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-
-  if (url.hostname.includes('googleapis.com') || url.hostname.includes('firebaseapp.com') || url.hostname.includes('gstatic.com')) {
-    return;
-  }
-
-  if (request.method !== 'GET') return;
+  if (event.request.method !== 'GET') return;
+  
+  const url = new URL(event.request.url);
+  if (url.hostname.includes('googleapis.com') || url.hostname.includes('gstatic.com')) return;
 
   event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      const fetchPromise = fetch(request).then((networkResponse) => {
+    caches.match(event.request).then((cachedResponse) => {
+      const fetchPromise = fetch(event.request).then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache);
+            cache.put(event.request, responseToCache);
           });
         }
         return networkResponse;
