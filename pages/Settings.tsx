@@ -1,7 +1,7 @@
 import React, { useState, useContext, useRef, useEffect } from 'react';
 import { AppContext } from '../contexts/AppContext.tsx';
 import { Settings as SettingsType, SettingCategory, ThemePalette, TextPalette, Theme } from '../types.ts';
-import { AddIcon, DeleteIcon, EditIcon, ArrowUpIcon, ArrowDownIcon, InstallIcon, CheckCircleIcon, ClockIcon } from '../components/Icons.tsx';
+import { AddIcon, DeleteIcon, EditIcon, ArrowUpIcon, ArrowDownIcon, InstallIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleIcon } from '../components/Icons.tsx';
 import ConfirmationDialog from '../components/ConfirmationDialog.tsx';
 import Modal from '../components/Modal.tsx';
 import DebugTerminal from '../components/DebugTerminal.tsx';
@@ -56,8 +56,6 @@ const Settings: React.FC = () => {
     } = useContext(AppContext);
     
     const isAdminOrMaster = user?.roles.includes('master') || user?.roles.includes('admin');
-    
-    // FIX: Defined missing 'canEdit' and 'canUpdate' variables based on user permissions for the settings module.
     const canEdit = user?.permissions.settings === 'edit';
     const canUpdate = user?.permissions.settings === 'edit' || user?.permissions.settings === 'update';
     
@@ -74,8 +72,9 @@ const Settings: React.FC = () => {
     const [itemToDelete, setItemToDelete] = useState<{ key: SettingKey; item: SettingCategory } | null>(null);
 
     // PWA Health State
-    const [swState, setSwState] = useState<'checking' | 'active' | 'none' | 'unsupported'>('checking');
+    const [swState, setSwState] = useState<'checking' | 'active' | 'none' | 'unsupported' | 'blocked'>('checking');
     const [cacheInfo, setCacheInfo] = useState<string>('Verificando...');
+    const [isSandboxEnv, setIsSandboxEnv] = useState(false);
 
     useEffect(() => {
         setLocalSettings(settings);
@@ -88,8 +87,17 @@ const Settings: React.FC = () => {
     }, [activeTab]);
 
     const checkPWAHealth = async () => {
+        const isBlob = window.location.protocol === 'blob:';
+        setIsSandboxEnv(isBlob);
+
         if (!('serviceWorker' in navigator)) {
             setSwState('unsupported');
+            return;
+        }
+
+        if (isBlob) {
+            setSwState('blocked');
+            setCacheInfo('Bloqueado em Sandbox');
             return;
         }
 
@@ -108,6 +116,43 @@ const Settings: React.FC = () => {
         } catch (e) {
             setSwState('none');
         }
+    };
+
+    const handleCopyPWADiagnostic = async () => {
+        const registration = await navigator.serviceWorker.getRegistration();
+        const cacheKeys = await caches.keys();
+        const isBlob = window.location.protocol === 'blob:';
+        
+        const report = `
+=== RELATÓRIO DE SAÚDE PWA - GESTORPRO ===
+Data: ${new Date().toLocaleString('pt-BR')}
+Status Online: ${isOnline ? 'SIM' : 'NÃO'}
+Modo Standalone (App): ${isStandalone ? 'SIM' : 'NÃO'}
+Navegador: ${navigator.userAgent}
+Host: ${window.location.host || 'Sandbox/Preview'}
+Protocolo: ${window.location.protocol}
+
+--- SERVICE WORKER ---
+Suporte Hardware: ${('serviceWorker' in navigator) ? 'SIM' : 'NÃO'}
+Estado Atual: ${swState.toUpperCase()}
+Escopo: ${registration?.scope || 'N/A'}
+Controlador: ${navigator.serviceWorker.controller ? 'ATIVO' : 'NÃO DETECTADO'}
+
+--- CACHE STORAGE ---
+Versões: ${cacheKeys.length}
+Keys: ${cacheKeys.join(', ') || 'Nenhum cache encontrado'}
+
+--- INSTALAÇÃO ---
+Prompt Disponível: ${installPromptEvent ? 'SIM' : 'NÃO'}
+Requisitos SSL: ${window.location.protocol === 'https:' ? 'OK' : 'FALHA'}
+
+--- ANÁLISE DE ERROS ---
+${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Service Workers e instalação em previews de desenvolvimento. Teste o PWA em um domínio real HTTPS." : "Ambiente nominal. Verifique se o Manifest.json está acessível."}
+==========================================
+        `.trim();
+
+        navigator.clipboard.writeText(report);
+        alert("Relatório de diagnóstico copiado!");
     };
 
     if (!user || user?.permissions.settings === 'hidden') {
@@ -292,6 +337,20 @@ const Settings: React.FC = () => {
     const renderApplicationSettings = () => {
         return (
             <div className="space-y-6">
+                {isSandboxEnv && (
+                    <div className="p-4 bg-orange-50 dark:bg-orange-900/20 border-2 border-orange-500/30 rounded-2xl animate-pulse">
+                        <div className="flex gap-3">
+                            <div className="text-orange-600"><ExclamationTriangleIcon /></div>
+                            <div>
+                                <h4 className="text-xs font-black text-orange-800 dark:text-orange-400 uppercase tracking-widest">Aviso de Ambiente de Teste</h4>
+                                <p className="text-[11px] text-orange-700 dark:text-orange-500 mt-1 leading-relaxed">
+                                    Detectamos que você está em modo <b>Sandbox/Preview</b>. O navegador bloqueia funções de PWA (instalação e modo offline) neste ambiente por segurança. Para usar estes recursos, o app deve ser acessado em um domínio real via HTTPS.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Painel de Instalação */}
                     <div className="bg-primary-50 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-800 p-6 rounded-2xl">
@@ -301,7 +360,7 @@ const Settings: React.FC = () => {
                             </div>
                             <h3 className="text-xl font-bold text-gray-800 dark:text-white uppercase tracking-tighter">Instalação</h3>
                             <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 max-w-xs uppercase font-black">
-                                {isStandalone ? 'App rodando em modo nativo' : 'Adicione à sua tela inicial para acesso offline'}
+                                {isStandalone ? 'App rodando em modo nativo' : isSandboxEnv ? 'Instalação Bloqueada pelo Sandbox' : 'Adicione à sua tela inicial para acesso offline'}
                             </p>
                             
                             <div className="mt-6 w-full">
@@ -313,11 +372,11 @@ const Settings: React.FC = () => {
                                 ) : (
                                     <button
                                         onClick={triggerInstallPrompt}
-                                        disabled={!installPromptEvent}
+                                        disabled={!installPromptEvent || isSandboxEnv}
                                         className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary-600 text-white rounded-xl shadow-lg hover:bg-primary-700 transition-all transform active:scale-95 font-black text-xs uppercase tracking-widest disabled:opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed"
                                     >
                                         <InstallIcon />
-                                        {installPromptEvent ? 'Instalar Agora' : 'PWA Indisponível'}
+                                        {isSandboxEnv ? 'Bloqueado (Sandbox)' : installPromptEvent ? 'Instalar Agora' : 'Aguardando Navegador...'}
                                     </button>
                                 )}
                             </div>
@@ -337,26 +396,36 @@ const Settings: React.FC = () => {
                             </div>
                             <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50">
                                 <span className="text-[10px] font-black text-gray-500 uppercase">Service Worker</span>
-                                <span className={`text-[10px] font-black uppercase ${swState === 'active' ? 'text-green-500' : 'text-amber-500'}`}>
-                                    {swState === 'active' ? 'Ativo & Rodando' : swState === 'checking' ? 'Verificando...' : 'Inativo'}
+                                <span className={`text-[10px] font-black uppercase ${swState === 'active' ? 'text-green-500' : swState === 'blocked' ? 'text-orange-500' : 'text-amber-500'}`}>
+                                    {swState === 'active' ? 'Ativo & Rodando' : swState === 'blocked' ? 'Bloqueado (Sandbox)' : swState === 'checking' ? 'Verificando...' : 'Inativo'}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50">
-                                <span className="text-[10px] font-black text-gray-500 uppercase">Modo Offline</span>
+                                <span className="text-[10px] font-black text-gray-500 uppercase">Cache Offline</span>
                                 <span className="text-[10px] font-black text-primary-500 uppercase">{cacheInfo}</span>
                             </div>
                             <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50">
-                                <span className="text-[10px] font-black text-gray-500 uppercase">Interface</span>
-                                <span className="text-[10px] font-black text-gray-700 dark:text-gray-300 uppercase">{isStandalone ? 'App Standalone' : 'Navegador Web'}</span>
+                                <span className="text-[10px] font-black text-gray-500 uppercase">Protocolo</span>
+                                <span className={`text-[10px] font-black uppercase ${isSandboxEnv ? 'text-orange-500' : 'text-gray-400'}`}>
+                                    {isSandboxEnv ? 'blob: (Sandbox)' : window.location.protocol}
+                                </span>
                             </div>
                         </div>
                         
-                        <button 
-                            onClick={checkPWAHealth}
-                            className="mt-4 w-full py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                        >
-                            Atualizar Diagnóstico
-                        </button>
+                        <div className="grid grid-cols-2 gap-3 mt-4">
+                            <button 
+                                onClick={checkPWAHealth}
+                                className="w-full py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                            >
+                                Re-Testar
+                            </button>
+                            <button 
+                                onClick={handleCopyPWADiagnostic}
+                                className="w-full py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-center justify-center gap-1.5"
+                            >
+                                Copiar Log
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -364,8 +433,8 @@ const Settings: React.FC = () => {
                     <div className="flex gap-3">
                         <div className="text-amber-600 flex-shrink-0"><ClockIcon /></div>
                         <div>
-                            <p className="text-xs font-black text-amber-800 dark:text-amber-400 uppercase tracking-tighter">Dica de Teste:</p>
-                            <p className="text-[11px] text-amber-700 dark:text-amber-500 mt-1">Para testar o modo offline, desative o Wi-Fi. Se o sistema continuar funcionando e exibindo os dados, o PWA está operando corretamente através do Cache Storage.</p>
+                            <p className="text-xs font-black text-amber-800 dark:text-amber-400 uppercase tracking-tighter">Dica de Suporte:</p>
+                            <p className="text-[11px] text-amber-700 dark:text-amber-500 mt-1">Se o status for "Inativo" fora do Sandbox, certifique-se de que o SSL (HTTPS) está configurado corretamente. Clique em "COPIAR LOG" para gerar um relatório completo para o suporte.</p>
                         </div>
                     </div>
                 </div>
