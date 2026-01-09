@@ -10,7 +10,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const Appointments: React.FC = () => {
-  const { user, users, appointments, deleteAppointment, loading, isOnline, updateAppointment, settings, logo } = useContext(AppContext);
+  const { user, users, appointments, deleteAppointment, loading, isOnline, updateAppointment, settings } = useContext(AppContext);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('Todos');
@@ -22,7 +22,6 @@ const Appointments: React.FC = () => {
   
   const [searchByDate, setSearchByDate] = useState(false);
   const [dateFilter, setDateFilter] = useState({ start: '', end: '' });
-
 
   const canCreateOrDelete = user?.permissions.appointments === 'edit';
   const canUpdate = user?.permissions.appointments === 'edit' || user?.permissions.appointments === 'update';
@@ -127,23 +126,16 @@ const Appointments: React.FC = () => {
     });
   }, [userAppointments, searchQuery, users, statusFilter]);
 
-  const openFormModal = (appointment: Appointment | null) => {
-    setSelectedAppointment(appointment);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedAppointment(null);
-  };
-  
   const handleEditClick = (appointment: Appointment) => {
     setAppointmentToAction(appointment);
     setIsEditConfirmOpen(true);
   };
 
   const confirmEdit = () => {
-    if (appointmentToAction) openFormModal(appointmentToAction);
+    if (appointmentToAction) {
+        setSelectedAppointment(appointmentToAction);
+        setIsModalOpen(true);
+    }
     setIsEditConfirmOpen(false);
     setAppointmentToAction(null);
   };
@@ -163,15 +155,6 @@ const Appointments: React.FC = () => {
 
   const handleStatusChange = (appointment: Appointment, newStatus: AppointmentStatus) => {
     updateAppointment({ ...appointment, status: newStatus });
-  };
-  
-  const handleDateFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setDateFilter(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  };
-
-  const handleToggleSearchByDate = (checked: boolean) => {
-    setSearchByDate(checked);
-    if (!checked) setDateFilter({ start: '', end: '' });
   };
 
   const handleExportExcel = () => {
@@ -220,70 +203,80 @@ const Appointments: React.FC = () => {
   };
 
   const renderMobileCards = () => (
-    <div className="flex flex-col gap-6 lg:hidden w-full pb-10">
+    <div className="flex flex-col gap-4 lg:hidden w-full pb-20">
         {filteredAppointments.map(app => (
-            <div key={app.id} className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700/50 w-full overflow-hidden flex flex-col">
-                <div className="bg-gray-50 dark:bg-gray-700/50 px-5 py-3 flex justify-between items-center border-b border-gray-100 dark:border-gray-700/50">
-                    <span className="text-[10px] font-black font-mono text-primary-600 dark:text-primary-400 uppercase tracking-tighter">
-                        {app.displayId || `#${app.stringId?.slice(-6).toUpperCase()}`}
-                    </span>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase">{new Date(app.date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+            <div key={app.id} className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700/50 overflow-hidden">
+                <div className="bg-gray-50 dark:bg-gray-900/50 p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-mono font-black text-primary-600 dark:text-primary-400 uppercase tracking-widest">
+                            {app.displayId || `#${app.stringId?.slice(-6).toUpperCase()}`}
+                        </span>
+                        <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">{app.licensePlate}</h3>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-[10px] font-black text-gray-400 uppercase">Data</p>
+                        <p className="text-sm font-bold text-gray-700 dark:text-gray-200">{new Date(app.date + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
+                    </div>
                 </div>
-
-                <div className="p-5 space-y-4">
-                    <div>
-                        <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter break-all">{app.licensePlate}</h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 font-medium leading-relaxed mt-1">{app.description}</p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100 dark:border-gray-700/50">
-                        <div className="space-y-3">
-                            <div>
-                                <span className="block text-[9px] uppercase font-black text-gray-400 mb-0.5">Solicitante</span>
-                                <span className="text-xs font-bold text-gray-800 dark:text-gray-200 break-words">{app.requester}</span>
-                            </div>
-                            <div>
-                                <span className="block text-[9px] uppercase font-black text-gray-400 mb-0.5">Demanda</span>
-                                <span className="text-xs font-black text-primary-500 uppercase break-words">{app.demand}</span>
-                            </div>
+                
+                <div className="p-4 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Solicitante</p>
+                            <p className="text-xs font-bold text-gray-800 dark:text-gray-200 leading-tight whitespace-normal">{app.requester}</p>
                         </div>
-                        <div className="space-y-3 border-l border-gray-100 dark:border-gray-700/50 pl-4">
-                            <div>
-                                <span className="block text-[9px] uppercase font-black text-gray-400 mb-0.5">Tipo de Vistoria</span>
-                                <span className="text-xs font-bold text-gray-800 dark:text-gray-200 break-words">{app.inspectionType}</span>
-                            </div>
-                            <div>
-                                <span className="block text-[9px] uppercase font-black text-gray-400 mb-0.5">Pátio</span>
-                                <span className="text-xs font-bold text-gray-600 dark:text-gray-400 break-words">{app.patio}</span>
-                            </div>
+                        <div>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Demanda</p>
+                            <p className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase leading-tight whitespace-normal">{app.demand}</p>
                         </div>
                     </div>
 
-                    <div className="pt-4 border-t border-gray-100 dark:border-gray-700/50">
-                        <span className="block text-[9px] uppercase font-black text-gray-400 mb-0.5">Vistoriador</span>
-                        <span className="text-xs font-bold text-gray-800 dark:text-gray-200">{getInspectorName(app.inspectorId)}</span>
+                    <div className="grid grid-cols-2 gap-4 border-t border-gray-50 dark:border-gray-700/50 pt-2">
+                        <div>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Tipo</p>
+                            <p className="text-xs font-bold text-gray-800 dark:text-gray-200 leading-tight whitespace-normal">{app.inspectionType}</p>
+                        </div>
+                        <div>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Pátio</p>
+                            <p className="text-xs font-medium text-gray-500 italic leading-tight whitespace-normal">{app.patio}</p>
+                        </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-gray-50 dark:border-gray-700/50">
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Vistoriador</p>
+                        <p className="text-xs font-black text-primary-700 dark:text-primary-400 uppercase">{getInspectorName(app.inspectorId)}</p>
+                    </div>
+
+                    <div className="p-3 bg-gray-50 dark:bg-gray-900/30 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Descrição</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-300 font-medium whitespace-normal">{app.description || "Nenhuma descrição."}</p>
                     </div>
 
                     {app.notes && (
-                        <div className="p-3 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-900/20">
-                            <span className="block text-[9px] uppercase font-black text-amber-600 dark:text-amber-500 mb-1">Observações</span>
-                            <p className="text-xs text-amber-800 dark:text-amber-200 italic leading-snug">{app.notes}</p>
+                        <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-900/50">
+                            <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest mb-1">Observações</p>
+                            <p className="text-xs text-amber-800 dark:text-amber-400 font-bold italic whitespace-normal">{app.notes}</p>
                         </div>
                     )}
-                </div>
 
-                <div className="p-5 pt-0 mt-auto space-y-3">
-                    <select
-                        value={app.status}
-                        onChange={(e) => handleStatusChange(app, e.target.value as AppointmentStatus)}
-                        disabled={!canUpdate}
-                        className={`w-full p-4 text-sm font-black rounded-2xl border-0 focus:ring-2 focus:ring-primary-500 shadow-sm transition-all appearance-none text-center ${getStatusColor(app.status)}`}
-                    >
-                        {settings.statuses.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                    </select>
-                    <div className="flex gap-2">
-                        <button onClick={() => handleEditClick(app)} disabled={!canUpdate} className="flex-1 flex justify-center items-center gap-2 p-4 bg-primary-50 text-primary-600 rounded-2xl dark:bg-primary-900/30 font-black text-xs transition-transform active:scale-95"><EditIcon /> EDITAR</button>
-                        <button onClick={() => handleDeleteClick(app)} disabled={!canCreateOrDelete} className="flex-1 flex justify-center items-center gap-2 p-4 bg-red-50 text-red-600 rounded-2xl dark:bg-red-900/30 font-black text-xs transition-transform active:scale-95"><DeleteIcon /> EXCLUIR</button>
+                    <div className="pt-2 border-t border-gray-50 dark:border-gray-700/50">
+                        <select
+                            value={app.status}
+                            onChange={(e) => handleStatusChange(app, e.target.value as AppointmentStatus)}
+                            disabled={!canUpdate}
+                            className={`w-full p-3 text-sm font-black rounded-2xl border-0 appearance-none text-center shadow-inner transition-all ${getStatusColor(app.status)}`}
+                        >
+                            {settings.statuses.map(s => <option key={s.id} value={s.name}>{s.name.toUpperCase()}</option>)}
+                        </select>
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                        <button onClick={() => handleEditClick(app)} disabled={!canUpdate} className="flex-1 flex items-center justify-center gap-2 p-3 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 rounded-2xl font-black text-xs uppercase active:scale-95 transition-transform">
+                            <EditIcon /> Editar
+                        </button>
+                        <button onClick={() => handleDeleteClick(app)} disabled={!canCreateOrDelete} className="flex-1 flex items-center justify-center gap-2 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-2xl font-black text-xs uppercase active:scale-95 transition-transform">
+                            <DeleteIcon /> Excluir
+                        </button>
                     </div>
                 </div>
             </div>
@@ -296,55 +289,55 @@ const Appointments: React.FC = () => {
         <table className="w-full text-[10px] text-left border-collapse table-fixed">
           <thead className="text-[9px] text-white uppercase bg-primary-600 sticky top-0 z-10">
             <tr>
-              <th className="p-1 font-black w-[4%]">ID</th>
-              <th className="p-1 font-black w-[6%]">Data</th>
-              <th className="p-1 font-black w-[7%]">Placa</th>
-              <th className="p-1 font-black w-[11%]">Descrição</th>
-              <th className="p-1 font-black w-[9%]">Solicitante</th>
-              <th className="p-1 font-black w-[7%]">Demanda</th>
-              <th className="p-1 font-black w-[13%]">Tipo de Vistoria</th>
-              <th className="p-1 font-black w-[11%]">Pátio</th>
-              <th className="p-1 font-black w-[9%]">Obs.</th>
-              <th className="p-1 font-black w-[11%]">Vistoriador</th>
-              <th className="p-1 font-black w-[8%]">Status</th>
-              <th className="p-1 font-black text-center w-[4%]">Ações</th>
+              <th className="p-2 font-black w-[4%] text-center">ID</th>
+              <th className="p-2 font-black w-[6%]">Data</th>
+              <th className="p-2 font-black w-[7%]">Placa</th>
+              <th className="p-2 font-black w-[11%]">Descrição</th>
+              <th className="p-2 font-black w-[9%]">Solicitante</th>
+              <th className="p-2 font-black w-[8%]">Demanda</th>
+              <th className="p-2 font-black w-[13%]">Tipo de Vistoria</th>
+              <th className="p-2 font-black w-[11%]">Pátio</th>
+              <th className="p-2 font-black w-[9%]">Obs.</th>
+              <th className="p-2 font-black w-[10%]">Vistoriador</th>
+              <th className="p-2 font-black w-[9%]">Status</th>
+              <th className="p-2 font-black text-center w-[4%]">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
             {filteredAppointments.map(app => (
               <tr key={app.id} className="bg-white dark:bg-gray-800 hover:bg-primary-50/20 dark:hover:bg-primary-900/10 transition-colors group">
-                <td className="p-1 font-mono text-[8px] text-gray-400 font-bold truncate" title={app.displayId || `#${app.stringId?.slice(-6).toUpperCase()}`}>{app.displayId || `#${app.stringId?.slice(-4).toUpperCase()}`}</td>
-                <td className="p-1 whitespace-nowrap text-gray-600 dark:text-gray-400 font-bold">{new Date(app.date + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}</td>
-                <td className="p-1">
+                <td className="p-2 font-mono text-[8px] text-gray-400 font-bold truncate text-center" title={app.displayId || `#${app.stringId?.slice(-6).toUpperCase()}`}>{app.displayId || `#${app.stringId?.slice(-4).toUpperCase()}`}</td>
+                <td className="p-2 whitespace-nowrap text-gray-600 dark:text-gray-400 font-bold">{new Date(app.date + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}</td>
+                <td className="p-2">
                     <span className="font-black text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded text-[9px] block text-center truncate">{app.licensePlate}</span>
                 </td>
-                <td className="p-1">
+                <td className="p-2">
                     <div className="font-medium text-gray-600 dark:text-gray-300 truncate" title={app.description}>{app.description}</div>
                 </td>
-                <td className="p-1 font-bold text-gray-700 dark:text-gray-200 truncate" title={app.requester}>{app.requester}</td>
-                <td className="p-1">
-                    <div className="font-bold text-gray-600 dark:text-gray-400 uppercase truncate" title={app.demand}>{app.demand}</div>
+                <td className="p-2 font-bold text-gray-700 dark:text-gray-200 truncate" title={app.requester}>{app.requester}</td>
+                <td className="p-2">
+                    <div className="font-bold text-gray-600 dark:text-gray-400 uppercase whitespace-normal break-words leading-tight" title={app.demand}>{app.demand}</div>
                 </td>
-                <td className="p-1 text-gray-700 dark:text-gray-200 truncate font-bold" title={app.inspectionType}>{app.inspectionType}</td>
-                <td className="p-1 text-gray-500 italic truncate" title={app.patio}>{app.patio}</td>
-                <td className="p-1">
+                <td className="p-2 text-gray-700 dark:text-gray-200 truncate font-bold" title={app.inspectionType}>{app.inspectionType}</td>
+                <td className="p-2 text-gray-500 italic truncate" title={app.patio}>{app.patio}</td>
+                <td className="p-2">
                     <div className="italic text-amber-600 dark:text-amber-400 truncate text-[9px]" title={app.notes || 'Sem observações'}>{app.notes || '---'}</div>
                 </td>
-                <td className="p-1 whitespace-nowrap font-bold text-gray-700 dark:text-gray-300 truncate text-[9px]" title={getInspectorName(app.inspectorId)}>{getInspectorName(app.inspectorId)}</td>
-                <td className="p-1">
+                <td className="p-2 whitespace-nowrap font-bold text-gray-700 dark:text-gray-300 truncate text-[9px]" title={getInspectorName(app.inspectorId)}>{getInspectorName(app.inspectorId)}</td>
+                <td className="p-2">
                   <select
                       value={app.status}
                       onChange={(e) => handleStatusChange(app, e.target.value as AppointmentStatus)}
                       disabled={!canUpdate}
-                      className={`w-full p-0.5 text-[8px] font-black rounded border-0 focus:ring-1 focus:ring-primary-500 cursor-pointer shadow-sm appearance-none text-center truncate ${getStatusColor(app.status)}`}
+                      className={`w-full p-1 text-[8px] font-black rounded border-0 focus:ring-1 focus:ring-primary-500 cursor-pointer shadow-sm appearance-none text-center truncate ${getStatusColor(app.status)}`}
                   >
                       {settings.statuses.map(s => <option key={s.id} value={s.name}>{s.name.toUpperCase()}</option>)}
                   </select>
                 </td>
-                <td className="p-1">
+                <td className="p-2">
                   <div className="flex justify-center gap-1">
-                    <button onClick={() => handleEditClick(app)} disabled={!canUpdate} className="text-primary-500 hover:scale-110 transition-transform" title="Editar"><EditIcon /></button>
-                    <button onClick={() => handleDeleteClick(app)} disabled={!canCreateOrDelete} className="text-red-500 hover:scale-110 transition-transform" title="Excluir"><DeleteIcon /></button>
+                    <button onClick={() => handleEditClick(app)} disabled={!canUpdate} className="text-primary-500 hover:scale-110 transition-transform"><EditIcon /></button>
+                    <button onClick={() => handleDeleteClick(app)} disabled={!canCreateOrDelete} className="text-red-500 hover:scale-110 transition-transform"><DeleteIcon /></button>
                   </div>
                 </td>
               </tr>
@@ -372,34 +365,34 @@ const Appointments: React.FC = () => {
               </div>
           )}
           {canCreateOrDelete && (
-            <button onClick={() => openFormModal(null)} className="flex items-center justify-center gap-2 px-6 py-3.5 bg-primary-600 text-white rounded-2xl shadow-xl hover:bg-primary-700 transition-all font-black text-sm active:scale-95 group">
+            <button onClick={() => { setSelectedAppointment(null); setIsModalOpen(true); }} className="flex items-center justify-center gap-2 px-6 py-3.5 bg-primary-600 text-white rounded-2xl shadow-xl hover:bg-primary-700 transition-all font-black text-sm active:scale-95 group">
               <AddIcon /> <span className="group-hover:translate-x-1 transition-transform">NOVO AGENDAMENTO</span>
             </button>
           )}
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 p-2 sm:p-5 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-700/50 w-full overflow-hidden">
-        <div className="flex flex-col gap-3 mb-4">
+      <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-700/50 w-full overflow-hidden">
+        <div className="flex flex-col gap-4 sm:gap-6 mb-6 sm:mb-8">
             <div className="relative w-full">
-                <input type="text" placeholder="Busque por placa, descrição, demanda, pátio ou observações..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} spellCheck="true" className="w-full pl-11 pr-6 py-2.5 text-sm border-0 bg-gray-50 dark:bg-gray-900/50 rounded-xl focus:ring-2 focus:ring-primary-500 shadow-inner dark:text-white placeholder-gray-400 font-medium" />
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 w-5 h-5"><SearchIcon /></div>
+                <input type="text" placeholder="Busque por placa, descrição, demanda..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} spellCheck="true" className="w-full pl-12 sm:pl-14 pr-6 py-3.5 sm:py-4 text-sm sm:text-base border-0 bg-gray-50 dark:bg-gray-900/50 rounded-2xl focus:ring-2 focus:ring-primary-500 shadow-inner dark:text-white placeholder-gray-400 font-medium" />
+                <div className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-gray-300 w-5 h-5 sm:w-6 sm:h-6"><SearchIcon /></div>
             </div>
             
-            <div className="flex flex-col sm:flex-row gap-3">
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full sm:w-1/4 px-4 py-2.5 text-[11px] font-black border-0 bg-gray-50 dark:bg-gray-900/50 rounded-xl focus:ring-2 focus:ring-primary-500 transition-all text-gray-700 dark:text-gray-200">
+            <div className="flex flex-col sm:flex-row gap-4">
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full sm:w-1/3 px-5 py-3.5 text-sm font-black border-0 bg-gray-50 dark:bg-gray-900/50 rounded-2xl focus:ring-2 focus:ring-primary-500 transition-all text-gray-700 dark:text-gray-200">
                     <option value="Todos">TODOS OS STATUS</option>
                     {settings.statuses.filter(s => s.name !== 'Solicitado' || !isAdminOrMaster).map(s => <option key={s.id} value={s.name}>{s.name.toUpperCase()}</option>)}
                 </select>
                 
                 {isAdminOrMasterOrClient && (
-                    <div className="flex flex-grow items-center gap-3 px-4 py-2.5 bg-gray-50 dark:bg-gray-900/50 rounded-xl overflow-hidden border-0">
-                        <input type="checkbox" id="searchByDate" checked={searchByDate} onChange={(e) => handleToggleSearchByDate(e.target.checked)} className="h-5 w-5 rounded-lg border-gray-300 text-primary-600 focus:ring-primary-500 flex-shrink-0 transition-all cursor-pointer"/>
-                        <label htmlFor="searchByDate" className="text-[9px] font-black text-gray-500 dark:text-gray-400 whitespace-nowrap cursor-pointer uppercase tracking-widest">Filtrar Período</label>
+                    <div className="flex flex-grow items-center gap-4 px-5 py-3.5 bg-gray-50 dark:bg-gray-900/50 rounded-2xl overflow-hidden border-0">
+                        <input type="checkbox" id="searchByDate" checked={searchByDate} onChange={(e) => setSearchByDate(e.target.checked)} className="h-6 w-6 rounded-lg border-gray-300 text-primary-600 focus:ring-primary-500 flex-shrink-0 transition-all cursor-pointer"/>
+                        <label htmlFor="searchByDate" className="text-[10px] font-black text-gray-500 dark:text-gray-400 whitespace-nowrap cursor-pointer uppercase tracking-widest">Filtrar Período</label>
                         <div className={`flex items-center gap-2 flex-grow transition-all ${searchByDate ? 'opacity-100 translate-x-0' : 'opacity-20 translate-x-2 pointer-events-none'}`}>
-                            <input type="date" name="start" value={dateFilter.start} onChange={handleDateFilterChange} className="w-full bg-transparent border-none p-0 text-[11px] font-black focus:ring-0 text-gray-700 dark:text-gray-200" />
+                            <input type="date" name="start" value={dateFilter.start} onChange={(e) => setDateFilter(p => ({...p, start: e.target.value}))} className="w-full bg-transparent border-none p-0 text-xs font-black focus:ring-0 text-gray-700 dark:text-gray-200" />
                             <span className="text-gray-300 font-black">/</span>
-                            <input type="date" name="end" value={dateFilter.end} onChange={handleDateFilterChange} className="w-full bg-transparent border-none p-0 text-[11px] font-black focus:ring-0 text-gray-700 dark:text-gray-200" />
+                            <input type="date" name="end" value={dateFilter.end} onChange={(e) => setDateFilter(p => ({...p, end: e.target.value}))} className="w-full bg-transparent border-none p-0 text-xs font-black focus:ring-0 text-gray-700 dark:text-gray-200" />
                         </div>
                     </div>
                 )}
@@ -410,17 +403,17 @@ const Appointments: React.FC = () => {
             <div className="w-full min-w-0">
                 {renderDesktopTable()}
                 {renderMobileCards()}
-                {filteredAppointments.length === 0 && <div className="text-center py-32"><div className="mx-auto w-16 h-16 text-gray-200 mb-4"><SearchIcon /></div><p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Nenhum agendamento localizado com estes critérios.</p></div>}
+                {filteredAppointments.length === 0 && <div className="text-center py-32"><div className="mx-auto w-16 h-16 text-gray-200 mb-4"><SearchIcon /></div><p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Nenhum agendamento localizado.</p></div>}
             </div>
         )}
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={selectedAppointment ? 'Editar Detalhes da Vistoria' : 'Cadastrar Novo Agendamento'}>
-        <AppointmentForm appointment={selectedAppointment} onSave={handleCloseModal} />
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={selectedAppointment ? 'Editar Vistoria' : 'Nova Vistoria'}>
+        <AppointmentForm appointment={selectedAppointment} onSave={() => setIsModalOpen(false)} />
       </Modal>
 
-      <ConfirmationDialog isOpen={isDeleteConfirmOpen} onClose={() => setIsDeleteConfirmOpen(false)} onConfirm={confirmDelete} title="Confirmar Exclusão" message="Atenção: A remoção deste agendamento é definitiva. Deseja prosseguir?"/>
-      <ConfirmationDialog isOpen={isEditConfirmOpen} onClose={() => setIsEditConfirmOpen(false)} onConfirm={confirmEdit} title="Alterar Informações" message="Deseja abrir o formulário de edição para este agendamento?" confirmButtonColor="blue" />
+      <ConfirmationDialog isOpen={isDeleteConfirmOpen} onClose={() => setIsDeleteConfirmOpen(false)} onConfirm={confirmDelete} title="Excluir Registro" message="Tem certeza que deseja excluir permanentemente este agendamento?"/>
+      <ConfirmationDialog isOpen={isEditConfirmOpen} onClose={() => setIsEditConfirmOpen(false)} onConfirm={confirmEdit} title="Editar Registro" message="Deseja abrir o formulário de edição?" confirmButtonColor="blue" />
     </>
   );
 };
