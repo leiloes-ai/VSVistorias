@@ -91,18 +91,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [themePalette]);
 
   useEffect(() => {
+    const swVersion = '1.26.0';
     const registerPWA = async () => {
         if (!('serviceWorker' in navigator)) return;
         if (window.location.protocol === 'blob:') return;
 
         try {
-            // VERIFICAÇÃO FÍSICA PROATIVA (BYPASS REDIRECTS)
-            const checkFile = await fetch('/sw.js', { method: 'HEAD', cache: 'no-store' }).catch(() => null);
+            // VERIFICAÇÃO COM CACHE-BUSTING PARA FORÇAR O VERCEL A BUSCAR O ARQUIVO NOVO
+            const checkFile = await fetch(`/sw.js?v=${swVersion}`, { method: 'GET', cache: 'no-store' }).catch(() => null);
             
             if (checkFile && checkFile.ok) {
-                // IMPORTANTE: Adicionado { type: 'module' } para suportar os imports no sw.js
-                const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' });
-                console.info("PWA: Service Worker v1.25.0 registrado com sucesso (Modo Módulo).");
+                const text = await checkFile.clone().text();
+                // VALIDAÇÃO DE ASSINATURA: Se a resposta for o index.html (SPA Redirect), o texto não terá a assinatura.
+                if (!text.includes('GESTORPRO-SW-SIGNATURE')) {
+                    console.error("PWA: Servidor entregou HTML em vez de script (MIME Mistake).");
+                    return;
+                }
+
+                const registration = await navigator.serviceWorker.register(`/sw.js?v=${swVersion}`, { 
+                    scope: '/', 
+                    type: 'module' 
+                });
+                
+                console.info(`PWA: Service Worker ${swVersion} registrado.`);
 
                 registration.addEventListener('updatefound', () => {
                     const newWorker = registration.installing;
@@ -115,14 +126,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     }
                 });
             } else {
-                const status = checkFile ? checkFile.status : 'FALHA DE REDE';
-                console.error(`PWA: Arquivo /sw.js inacessível. Status: ${status}. Verifique o servidor/vercel.json.`);
-                // Limpeza preventiva em caso de erro 404 persistente (limpa registros fantasmagóricos)
-                const regs = await navigator.serviceWorker.getRegistrations();
-                for (let r of regs) await r.unregister();
+                console.error(`PWA: Erro 404 persistente ao buscar /sw.js.`);
             }
         } catch (e: any) {
-            console.warn("PWA Critical Failure:", e.message);
+            console.warn("PWA Error:", e.message);
         }
     };
 
@@ -146,7 +153,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
        }
        localStorage.clear();
        setTimeout(() => window.location.reload(), 300);
-       return { success: true, message: "PWA limpo. Reiniciando sistema..." };
+       return { success: true, message: "PWA limpo. Reiniciando..." };
      } catch (e: any) {
        return { success: false, message: "Falha: " + e.message };
      }

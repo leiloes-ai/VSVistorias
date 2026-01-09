@@ -28,12 +28,6 @@ const palettes: { id: ThemePalette; name: string; colors: string[] }[] = [
     { id: 'maroon', name: 'Vermelho Sangue', colors: ['#991b1b', '#800000'] },
 ];
 
-const textPalettes: { id: TextPalette; name: string; color: string }[] = [
-    { id: 'gray', name: 'Padrão (Cinza)', color: '#374151' },
-    { id: 'slate', name: 'Frio (Ardósia)', color: '#334155' },
-    { id: 'stone', name: 'Quente (Pedra)', color: '#44403c' },
-];
-
 const ToggleSwitch: React.FC<{ label: string; enabled: boolean; onChange: (enabled: boolean) => void; disabled: boolean }> = ({ label, enabled, onChange, disabled }) => (
     <label className="flex items-center justify-between cursor-pointer">
         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</span>
@@ -104,25 +98,18 @@ const Settings: React.FC = () => {
         }
 
         try {
-            // TESTE DE VISIBILIDADE REAL (BYPASS CACHE)
-            const response = await fetch('/sw.js', { method: 'GET', cache: 'no-store' }).catch(() => null);
+            const response = await fetch('/sw.js?check=' + Date.now(), { method: 'GET', cache: 'no-store' }).catch(() => null);
             
-            if (!response) {
+            if (!response || response.status === 404) {
                 setSwState('error404');
-                setCacheInfo('Indisponível no Servidor');
+                setCacheInfo('sw.js não encontrado');
                 return;
             }
 
-            if (response.status === 404) {
-                setSwState('error404');
-                setCacheInfo('sw.js não existe (404)');
-                return;
-            }
-
-            const contentType = response.headers.get('content-type');
-            if (contentType && !contentType.includes('javascript')) {
+            const text = await response.clone().text();
+            if (!text.includes('GESTORPRO-SW-SIGNATURE')) {
                 setSwState('invalidMime');
-                setCacheInfo(`MIME Inválido: ${contentType}`);
+                setCacheInfo('Assinatura Inválida (HTML?)');
                 return;
             }
 
@@ -160,27 +147,20 @@ const Settings: React.FC = () => {
 Data: ${new Date().toLocaleString('pt-BR')}
 Status Online: ${isOnline ? 'SIM' : 'NÃO'}
 Modo Standalone (App): ${isStandalone ? 'SIM' : 'NÃO'}
-Navegador: ${navigator.userAgent}
-Host: ${window.location.host || 'Sandbox/Preview'}
-Protocolo: ${window.location.protocol}
+Host: ${window.location.host || 'Sandbox'}
 
 --- SERVICE WORKER ---
 Suporte Hardware: ${('serviceWorker' in navigator) ? 'SIM' : 'NÃO'}
 Estado Atual: ${swState.toUpperCase()}
-Escopo: ${registration?.scope || 'N/A'}
-Controlador: ${navigator.serviceWorker.controller ? 'ATIVO' : 'NÃO DETECTADO'}
+Filtro: ${swState === 'invalidMime' ? 'DETECCÇÃO DE SPA REDIRECT ATIVA' : 'NOMINAL'}
 
 --- CACHE STORAGE ---
-Versões: ${cacheKeys.length}
-Keys: ${cacheKeys.join(', ') || 'Nenhum cache encontrado'}
-
---- ANÁLISE DE ERROS ---
-${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Service Workers e instalação em previews de desenvolvimento." : swState === 'error404' ? "ERRO CRÍTICO: O arquivo /sw.js está retornando 404. O Vercel pode estar redirecionando para index.html indevidamente." : swState === 'invalidMime' ? "ERRO DE SERVIDOR: O sw.js foi encontrado, mas o servidor está dizendo que ele não é um arquivo Javascript. Verifique vercel.json." : "Ambiente nominal."}
+Keys: ${cacheKeys.join(', ') || 'Vazio'}
 ==========================================
         `.trim();
 
         navigator.clipboard.writeText(report);
-        alert("Relatório de diagnóstico copiado!");
+        alert("Relatório copiado!");
     };
 
     if (!user || user?.permissions.settings === 'hidden') {
@@ -204,7 +184,7 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
     const handleSave = () => {
         const { id, ...settingsToSave } = localSettings;
         updateSettings(settingsToSave); 
-        alert('Configurações salvas com sucesso!'); 
+        alert('Configurações salvas!'); 
     };
     
     const openModal = (key: SettingKey, item: SettingCategory | null) => { setCurrentKey(key); setCurrentItem(item); setItemName(item ? item.name : ''); setIsModalOpen(true); };
@@ -238,7 +218,7 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
             return false;
         });
         if (isInUse) {
-            alert(`Não é possível remover "${item.name}" pois está sendo utilizado em um ou mais agendamentos.`);
+            alert(`"${item.name}" está em uso.`);
             closeDeleteDialog();
             return;
         }
@@ -258,7 +238,7 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
     const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
-            if (file.size > 2 * 1024 * 1024) { alert("O arquivo é muito grande. O tamanho máximo é 2MB."); return; }
+            if (file.size > 2 * 1024 * 1024) { alert("Max 2MB."); return; }
             const reader = new FileReader();
             reader.onloadend = () => { if (reader.result) updateLogo(reader.result as string); };
             reader.readAsDataURL(file);
@@ -312,7 +292,7 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                         {logo ? <img src={logo} alt="Logo" className="object-contain h-full w-full" /> : <span className="text-xs text-gray-500">Sem Logo</span>}
                     </div>
                     <div>
-                        <input type="file" ref={fileInputRef} onChange={handleLogoUpload} accept="image/png, image/jpeg, image/svg+xml" className="hidden" disabled={!canEdit} />
+                        <input type="file" ref={fileInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" disabled={!canEdit} />
                         <button type="button" onClick={() => fileInputRef.current?.click()} disabled={!canEdit} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50">Alterar Logo</button>
                         <button type="button" onClick={() => updateLogo(null)} disabled={!canEdit || !logo} className="ml-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50">Remover Logo</button>
                     </div>
@@ -370,9 +350,9 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                         <div className="flex gap-3">
                             <div className="text-orange-600"><ExclamationTriangleIcon /></div>
                             <div>
-                                <h4 className="text-xs font-black text-orange-800 dark:text-orange-400 uppercase tracking-widest">Aviso de Ambiente de Teste</h4>
+                                <h4 className="text-xs font-black text-orange-800 dark:text-orange-400 uppercase tracking-widest">Aviso de Sandbox</h4>
                                 <p className="text-[11px] text-orange-700 dark:text-orange-500 mt-1 leading-relaxed">
-                                    Detectamos que você está em modo <b>Sandbox/Preview</b>. O navegador bloqueia funções de PWA (instalação e modo offline) neste ambiente por segurança. Para usar estes recursos, o app deve ser acessado em um domínio real via HTTPS.
+                                    O modo **Sandbox** impede funções de PWA por segurança do navegador. Use o domínio oficial para testar instalação.
                                 </p>
                             </div>
                         </div>
@@ -384,11 +364,11 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                         <div className="flex gap-3">
                             <div className="text-red-600"><ExclamationTriangleIcon /></div>
                             <div>
-                                <h4 className="text-xs font-black text-red-800 dark:text-red-400 uppercase tracking-widest">Erro Crítico de Configuração</h4>
+                                <h4 className="text-xs font-black text-red-800 dark:text-red-400 uppercase tracking-widest">Erro de Configuração</h4>
                                 <p className="text-[11px] text-red-700 dark:text-red-500 mt-1 leading-relaxed">
                                     {swState === 'error404' ? 
-                                        "O arquivo /sw.js NÃO EXISTE no servidor. Verifique se o Vercel concluiu o deploy corretamente ou se vercel.json está bloqueando o acesso." : 
-                                        "O sw.js foi encontrado, mas o servidor está informando o tipo de arquivo errado. Verifique os headers no vercel.json."
+                                        "O arquivo /sw.js NÃO FOI ENCONTRADO. O Vercel pode estar enviando o HTML da página no lugar do script." : 
+                                        "O arquivo foi encontrado, mas a assinatura de integridade falhou. O servidor está entregando o index.html como se fosse o script."
                                     }
                                 </p>
                             </div>
@@ -397,7 +377,6 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Painel de Instalação */}
                     <div className="bg-primary-50 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-800 p-6 rounded-2xl">
                         <div className="flex flex-col items-center text-center">
                             <div className="h-16 w-16 bg-primary-100 dark:bg-primary-800 rounded-2xl flex items-center justify-center text-primary-600 dark:text-primary-400 mb-4">
@@ -405,7 +384,7 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                             </div>
                             <h3 className="text-xl font-bold text-gray-800 dark:text-white uppercase tracking-tighter">Instalação</h3>
                             <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 max-w-xs uppercase font-black">
-                                {isStandalone ? 'App rodando em modo nativo' : isSandboxEnv ? 'Instalação Bloqueada pelo Sandbox' : 'Adicione à sua tela inicial para acesso offline'}
+                                {isStandalone ? 'App rodando em modo nativo' : 'Adicione à sua tela inicial'}
                             </p>
                             
                             <div className="mt-6 w-full">
@@ -417,60 +396,37 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                                 ) : (
                                     <button
                                         onClick={triggerInstallPrompt}
-                                        disabled={!installPromptEvent || isSandboxEnv || swState === 'error404' || swState === 'invalidMime'}
-                                        className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary-600 text-white rounded-xl shadow-lg hover:bg-primary-700 transition-all transform active:scale-95 font-black text-xs uppercase tracking-widest disabled:opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                        disabled={!installPromptEvent || swState === 'error404' || swState === 'invalidMime'}
+                                        className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary-600 text-white rounded-xl shadow-lg hover:bg-primary-700 transition-all transform active:scale-95 font-black text-xs uppercase tracking-widest disabled:opacity-50 disabled:bg-gray-400"
                                     >
                                         <InstallIcon />
-                                        {isSandboxEnv ? 'Bloqueado (Sandbox)' : swState === 'error404' ? 'Arquivo não Encontrado' : installPromptEvent ? 'Instalar Agora' : 'Aguardando Navegador...'}
+                                        {installPromptEvent ? 'Instalar Agora' : 'Aguardando Navegador...'}
                                     </button>
                                 )}
                             </div>
                         </div>
                     </div>
 
-                    {/* Painel de Diagnóstico */}
                     <div className="bg-gray-50 dark:bg-gray-900/20 border border-gray-100 dark:border-gray-800 p-6 rounded-2xl">
                         <h3 className="text-sm font-black text-gray-800 dark:text-white uppercase tracking-widest mb-4">Saúde do PWA</h3>
                         <div className="space-y-3">
                             <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50">
                                 <span className="text-[10px] font-black text-gray-500 uppercase">Status SW</span>
-                                <span className={`text-[10px] font-black uppercase ${swState === 'active' ? 'text-green-500' : swState === 'error404' || swState === 'invalidMime' ? 'text-red-500' : swState === 'blocked' ? 'text-orange-500' : 'text-amber-500'}`}>
-                                    {swState === 'active' ? 'Ativo & Rodando' : swState === 'error404' ? 'ERRO (404)' : swState === 'invalidMime' ? 'MIME INVÁLIDO' : swState === 'checking' ? 'Verificando...' : 'Inativo / Off'}
+                                <span className={`text-[10px] font-black uppercase ${swState === 'active' ? 'text-green-500' : 'text-red-500'}`}>
+                                    {swState === 'active' ? 'Ativo' : swState === 'error404' ? '404' : swState === 'invalidMime' ? 'MIME ERRADO' : 'Inativo'}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50">
-                                <span className="text-[10px] font-black text-gray-500 uppercase">Cache Offline</span>
+                                <span className="text-[10px] font-black text-gray-500 uppercase">Cache</span>
                                 <span className="text-[10px] font-black text-primary-500 uppercase">{cacheInfo}</span>
-                            </div>
-                            <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50">
-                                <span className="text-[10px] font-black text-gray-500 uppercase">Ambiente</span>
-                                <span className={`text-[10px] font-black uppercase ${isSandboxEnv ? 'text-orange-500' : 'text-green-500'}`}>
-                                    {isSandboxEnv ? 'PREVIEW (Limitado)' : 'PRODUÇÃO'}
-                                </span>
                             </div>
                         </div>
                         
                         <div className="grid grid-cols-2 gap-3 mt-4">
-                            <button 
-                                onClick={checkPWAHealth}
-                                className="w-full py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                            >
-                                Re-Testar
-                            </button>
-                            <button 
-                                onClick={handleRepairPWA}
-                                disabled={isRepairing || isSandboxEnv}
-                                className="w-full py-2 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-colors disabled:bg-gray-400"
-                            >
-                                {isRepairing ? 'Reparando...' : 'Reparar Registro'}
-                            </button>
+                            <button onClick={checkPWAHealth} className="w-full py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[9px] font-black uppercase tracking-widest">Re-Testar</button>
+                            <button onClick={handleRepairPWA} disabled={isRepairing} className="w-full py-2 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest">Reparar</button>
                         </div>
-                        <button 
-                            onClick={handleCopyPWADiagnostic}
-                            className="w-full mt-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-center justify-center gap-1.5"
-                        >
-                            Copiar Log Detalhado
-                        </button>
+                        <button onClick={handleCopyPWADiagnostic} className="w-full mt-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-[9px] font-black uppercase tracking-widest">Copiar Log</button>
                     </div>
                 </div>
 
@@ -478,9 +434,9 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                     <div className="flex gap-3">
                         <div className="text-amber-600 flex-shrink-0"><ClockIcon /></div>
                         <div>
-                            <p className="text-xs font-black text-amber-800 dark:text-amber-400 uppercase tracking-tighter">Nota Técnica:</p>
-                            <p className="text-[11px] text-amber-700 dark:text-amber-500 mt-1 leading-relaxed">
-                                O erro 404 geralmente ocorre porque o navegador "memorizou" uma falha de rede antiga. Se o servidor já foi atualizado, clique em <b>"REPARAR REGISTRO"</b> para forçar uma limpeza profunda e re-sincronizar os arquivos.
+                            <p className="text-xs font-black text-amber-800 dark:text-amber-400 uppercase">Solução de Problemas:</p>
+                            <p className="text-[11px] text-amber-700 dark:text-amber-500 mt-1">
+                                Se o erro 404 persistir mesmo com o servidor configurado, clique em **REPARAR** para remover registros antigos "fantasmagóricos" do navegador.
                             </p>
                         </div>
                     </div>
@@ -494,11 +450,11 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-gray-800 dark:text-white tracking-tighter">Configurações</h1>
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 font-medium">Painel de controle de preferências do sistema.</p>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 font-medium">Preferências do sistema.</p>
                 </div>
                 {canUpdate && activeTab !== 'application' && (
                     <button onClick={handleSave} className="px-6 py-2.5 bg-primary-600 text-white rounded-xl shadow-lg hover:bg-primary-700 transition-all font-black text-xs uppercase tracking-widest w-full sm:w-auto">
-                        Salvar Alterações
+                        Salvar
                     </button>
                 )}
             </div>
@@ -536,7 +492,7 @@ ${isBlob ? "DETECTADO: Ambiente de Sandbox (blob:). Navegadores bloqueiam Servic
                 </form>
             </Modal>
 
-            <ConfirmationDialog isOpen={isConfirmOpen} onClose={closeDeleteDialog} onConfirm={confirmDelete} title="Confirmar Exclusão" message={`Tem certeza que deseja remover "${itemToDelete?.item.name}"? Esta ação não pode ser desfeita.`} />
+            <ConfirmationDialog isOpen={isConfirmOpen} onClose={closeDeleteDialog} onConfirm={confirmDelete} title="Confirmar Exclusão" message={`Remover "${itemToDelete?.item.name}"?`} />
         </>
     );
 };
