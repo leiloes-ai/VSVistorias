@@ -1,6 +1,7 @@
-console.log('[SW] Service Worker v1.18.1 - Inicializando...');
+// GESTORPRO SERVICE WORKER - ATUALIZAÇÃO FORÇADA DEPLOY V1.18.2
+console.log('[SW] Service Worker v1.18.2 - Inicializando...');
 
-const VERSION = 'v1.18.1';
+const VERSION = 'v1.18.2';
 const CACHE_NAME = `gestorpro-cache-${VERSION}`;
 
 const APP_SHELL_URLS = [
@@ -15,10 +16,14 @@ const APP_SHELL_URLS = [
 
 // Helper para enviar logs para a aplicação principal (Debug Terminal)
 async function logToApp(level, message) {
-    const clients = await self.clients.matchAll();
-    clients.forEach(client => {
-        client.postMessage({ type: 'SW_LOG', level, message: `[Internal SW] ${message}` });
-    });
+    try {
+        const clients = await self.clients.matchAll();
+        clients.forEach(client => {
+            client.postMessage({ type: 'SW_LOG', level, message: `[Internal SW] ${message}` });
+        });
+    } catch (e) {
+        // Silencioso se falhar o postMessage
+    }
 }
 
 // --- Configuração do Firebase Messaging ---
@@ -92,6 +97,7 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // Ignora chamadas do Firebase/APIs
   if (url.hostname.includes('googleapis.com') || url.hostname.includes('firebaseapp.com') || url.hostname.includes('gstatic.com')) {
     return;
   }

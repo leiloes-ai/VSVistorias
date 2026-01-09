@@ -5,16 +5,16 @@
       "source": "/sw.js",
       "headers": [
         {
-          "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate"
+          "key": "Content-Type",
+          "value": "application/javascript"
         },
         {
           "key": "Service-Worker-Allowed",
           "value": "/"
         },
         {
-          "key": "Content-Type",
-          "value": "application/javascript"
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
         }
       ]
     }
@@ -33,7 +33,7 @@
       "destination": "/icon-$1.png"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!sw\\.js|manifest\\.json|icon-).*)",
       "destination": "/index.html"
     }
   ]
