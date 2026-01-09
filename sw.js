@@ -1,8 +1,8 @@
-// GESTORPRO SERVICE WORKER - V1.28.0
-// GESTORPRO-SW-SIGNATURE: VALID-JS-V1.28.0
-// Data: 09/01/2026 - CORREÇÃO DEFINITIVA DE MIME TYPE
+// GESTORPRO SERVICE WORKER - V1.29.0
+// GESTORPRO-SW-SIGNATURE: VALID-SERVICE-WORKER-V1.29.0
+// Data: 09/01/2026 - CORREÇÃO DE ROTA ESTÁTICA
 
-const VERSION = 'v1.28.0';
+const VERSION = 'v1.29.0';
 const CACHE_NAME = `gestorpro-cache-${VERSION}`;
 
 const logToApp = (message, level = 'info') => {
@@ -11,7 +11,7 @@ const logToApp = (message, level = 'info') => {
   });
 };
 
-console.log(`%c[SW] ${VERSION} - Online`, 'color: #3b82f6; font-weight: bold;');
+console.log(`%c[SW] ${VERSION} - Prontidão`, 'color: #3b82f6; font-weight: bold;');
 
 const APP_SHELL = [
   '/',
@@ -37,7 +37,7 @@ const messaging = getMessaging(firebaseApp);
 
 onBackgroundMessage(messaging, (payload) => {
   self.registration.showNotification(payload.notification?.title || 'GestorPRO', {
-    body: payload.notification?.body || 'Sistema atualizado.',
+    body: payload.notification?.body || 'Nova atualização.',
     icon: '/icon-192.png',
     badge: '/icon-192.png'
   });
@@ -53,7 +53,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => Promise.all(
-      keys.filter(k => k !== CACHE_NAME && k.startsWith('gestorpro-')).map(k => caches.delete(k))
+      keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
     )).then(() => self.clients.claim())
   );
 });
@@ -67,8 +67,7 @@ self.addEventListener('message', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
-  
-  if (url.hostname.includes('google') || url.hostname.includes('firebase') || url.hostname.includes('vercel')) return;
+  if (url.hostname.includes('google') || url.hostname.includes('firebase')) return;
 
   event.respondWith(
     caches.match(event.request).then((res) => {

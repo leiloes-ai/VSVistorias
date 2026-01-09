@@ -96,28 +96,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (window.location.protocol === 'blob:') return;
 
         try {
-            // FORÇA CACHE BUSTER PARA TESTAR O SERVIDOR REAL (BYPASS BROWSER CACHE)
-            const buster = Date.now();
-            const checkFile = await fetch(`/sw.js?cb=${buster}`, { method: 'GET', cache: 'no-store' }).catch(() => null);
+            // VERIFICAÇÃO SIMPLES SEM QUERY STRING PARA EVITAR 404 POR REWRITES DE SERVIDOR
+            const checkFile = await fetch('/sw.js', { method: 'GET', cache: 'no-store' }).catch(() => null);
             
             if (checkFile && checkFile.ok) {
                 const text = await checkFile.clone().text();
                 
-                // Se detectar HTML, o roteamento do servidor está quebrado
-                if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
-                    console.error("PWA Critical: O servidor retornou HTML em vez de script JS. Verifique vercel.json.");
-                    // Tenta limpar registros corrompidos se existirem
-                    const regs = await navigator.serviceWorker.getRegistrations();
-                    for (let r of regs) await r.unregister();
+                // Se detectar HTML, o servidor está servindo a página principal no lugar do JS
+                if (text.trim().startsWith('<!') || text.trim().startsWith('<html')) {
+                    console.error("PWA: Servidor redirecionou /sw.js para o index.html.");
                     return;
                 }
 
-                const registration = await navigator.serviceWorker.register(`/sw.js?v=1.28.0`, { 
+                const registration = await navigator.serviceWorker.register('/sw.js', { 
                     scope: '/', 
                     type: 'module' 
                 });
                 
-                console.info("PWA: Service Worker v1.28.0 registrado com sucesso.");
+                console.info("PWA: Service Worker v1.29.0 registrado.");
 
                 registration.addEventListener('updatefound', () => {
                     const newWorker = registration.installing;
@@ -130,10 +126,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     }
                 });
             } else {
-                console.warn(`PWA: sw.js inacessível. Status: ${checkFile?.status || 'FALHA DE REDE'}`);
+                console.warn(`PWA: sw.js não encontrado (Status ${checkFile?.status}).`);
             }
         } catch (e: any) {
-            console.warn("PWA Init Error:", e.message);
+            console.warn("PWA Error:", e.message);
         }
     };
 
@@ -157,7 +153,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
        }
        localStorage.clear();
        setTimeout(() => window.location.reload(), 300);
-       return { success: true, message: "PWA Resetado. Reiniciando em modo limpo..." };
+       return { success: true, message: "Ambiente limpo. Reiniciando..." };
      } catch (e: any) {
        return { success: false, message: "Falha: " + e.message };
      }
