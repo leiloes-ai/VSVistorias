@@ -1,11 +1,10 @@
 import React, { createContext, useState, useEffect, ReactNode, useRef } from 'react';
-import { User, Appointment, Settings, Theme, ThemePalette, Pendency, SettingCategory, TextPalette, FinancialTransaction, FinancialPage, FinancialAccount, ThirdParty } from '../types.ts';
+import { User, Appointment, Settings, Theme, ThemePalette, Pendency, SettingCategory, TextPalette, FinancialTransaction, FinancialPage, FinancialAccount, ThirdParty, AppointmentStatus, PendencyStatus } from '../types.ts';
 import { db, auth } from '../firebaseConfig.ts';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, query, where, writeBatch, arrayUnion } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, sendPasswordResetEmail, updatePassword as fbUpdatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 import { Page } from '../App.tsx';
 
-// Define the shape of our context
 export interface AppContextType {
   theme: Theme; toggleTheme: () => void; setTheme: (theme: Theme) => void;
   themePalette: ThemePalette; setThemePalette: (palette: ThemePalette) => void;
@@ -48,14 +47,18 @@ export interface AppContextType {
   deleteUser: (userId: string) => Promise<void>;
 }
 
-// Create context
 export const AppContext = createContext<AppContextType>({} as AppContextType);
 
-// Create provider
+const initialSettings: Settings = {
+    appName: 'GestorPRO', logoUrl: null, requesters: [], demands: [], inspectionTypes: [], patios: [], 
+    statuses: [{ id: '1', name: 'Solicitado' }, { id: '2', name: 'Agendado' }, { id: '3', name: 'Em Andamento' }, { id: '4', name: 'Concluído' }, { id: '5', name: 'Pendente' }, { id: '6', name: 'Finalizado' }],
+    financialCategories: [], services: [], enableSoundAlert: true, enableVibrationAlert: true, masterPassword: '002219',
+};
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [theme, setThemeState] = useState<Theme>('light');
-  const [themePalette, setThemePaletteState] = useState<ThemePalette>('blue');
-  const [textPalette, setTextPaletteState] = useState<TextPalette>('gray');
+  const [theme, setThemeState] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'light');
+  const [themePalette, setThemePaletteState] = useState<ThemePalette>(() => (localStorage.getItem('themePalette') as ThemePalette) || 'blue');
+  const [textPalette, setTextPaletteState] = useState<TextPalette>(() => (localStorage.getItem('textPalette') as TextPalette) || 'gray');
   
   const [user, setUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -64,361 +67,148 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [financials, setFinancials] = useState<FinancialTransaction[]>([]);
   const [accounts, setAccounts] = useState<FinancialAccount[]>([]);
   const [thirdParties, setThirdParties] = useState<ThirdParty[]>([]);
-  
-  const [settings, setSettings] = useState<Settings>({
-    appName: 'GestorPRO',
-    logoUrl: null,
-    requesters: [],
-    demands: [],
-    inspectionTypes: [],
-    patios: [],
-    statuses: [],
-    financialCategories: [],
-    services: [],
-    masterPassword: '123mudar'
-  });
+  const [settings, setSettings] = useState<Settings>(initialSettings);
   const [logo, setLogo] = useState<string | null>(null);
-  
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [notification, setNotification] = useState<string | null>(null);
   const [pageNotifications, setPageNotifications] = useState<Record<Page, boolean>>({} as Record<Page, boolean>);
-  
-  const [activePage, setActivePage] = useState<Page>('Dashboard');
+  const [activePage, setActivePage] = useState<Page>('Agendamentos');
   const [activeFinancialPage, setActiveFinancialPage] = useState<FinancialPage>('Dashboard');
-  
   const [installPromptEvent, setInstallPromptEvent] = useState<any>(null);
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
+  const [swRegistration, setSwRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [isStandalone, setIsStandalone] = useState(window.matchMedia('(display-mode: standalone)').matches);
 
-  // Theme management
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as Theme;
-    const savedPalette = localStorage.getItem('themePalette') as ThemePalette;
-    const savedText = localStorage.getItem('textPalette') as TextPalette;
-    if (savedTheme) setThemeState(savedTheme);
-    if (savedPalette) setThemePaletteState(savedPalette);
-    if (savedText) setTextPaletteState(savedText);
-    
-    if (savedTheme === 'dark') document.documentElement.classList.add('dark');
-  }, []);
-
-  const setTheme = (t: Theme) => {
-    setThemeState(t);
-    localStorage.setItem('theme', t);
-    if (t === 'dark') document.documentElement.classList.add('dark');
-    else document.documentElement.classList.remove('dark');
-  };
-  
-  const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
-
-  const setThemePalette = (p: ThemePalette) => {
-    setThemePaletteState(p);
-    localStorage.setItem('themePalette', p);
-  };
-
-  const setTextPalette = (p: TextPalette) => {
-    setTextPaletteState(p);
-    localStorage.setItem('textPalette', p);
-  };
-
-  // Notification management
-  const triggerNotification = (message: string = 'Ação concluída com sucesso.') => setNotification(message);
-  const clearNotification = () => setNotification(null);
-  const clearPageNotification = (page: Page) => setPageNotifications(prev => ({ ...prev, [page]: false }));
-
-  // Auth and data sync
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
-      if (fbUser) {
-        const userRef = doc(db, 'users', fbUser.uid);
-        onSnapshot(userRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setUser({ id: docSnap.id, ...docSnap.data() } as User);
-          } else {
-            // Default user doc if it doesn't exist (initial state for first admin)
-            const defaultUser: User = { 
-                id: fbUser.uid, 
-                name: fbUser.displayName || 'Usuário', 
-                email: fbUser.email || '', 
-                roles: ['master'], 
-                permissions: { dashboard: 'edit', appointments: 'edit', pendencies: 'edit', newRequests: 'edit', reports: 'edit', users: 'edit', settings: 'edit', financial: 'edit' } 
-            };
-            setUser(defaultUser);
-          }
-          setLoading(false);
-        });
-      } else {
-        setUser(null);
-        setLoading(false);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
+    document.documentElement.className = theme;
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   useEffect(() => {
-    if (!user) return;
-    
-    const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
-      setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
-    });
-    
-    const unsubAppointments = onSnapshot(collection(db, 'appointments'), (snapshot) => {
-      setAppointments(snapshot.docs.map((doc, index) => ({ id: index, stringId: doc.id, ...doc.data() } as Appointment)));
-    });
+    document.documentElement.dataset.palette = themePalette;
+    localStorage.setItem('themePalette', themePalette);
+  }, [themePalette]);
 
-    const unsubPendencies = onSnapshot(collection(db, 'pendencies'), (snapshot) => {
-      setPendencies(snapshot.docs.map((doc, index) => ({ id: index, stringId: doc.id, ...doc.data() } as Pendency)));
-    });
-
-    const unsubFinancials = onSnapshot(collection(db, 'financials'), (snapshot) => {
-      setFinancials(snapshot.docs.map((doc, index) => ({ id: index, stringId: doc.id, ...doc.data() } as FinancialTransaction)));
-    });
-
-    const unsubAccounts = onSnapshot(collection(db, 'accounts'), (snapshot) => {
-      setAccounts(snapshot.docs.map((doc, index) => ({ id: index, stringId: doc.id, ...doc.data() } as FinancialAccount)));
-    });
-
-    const unsubThirdParties = onSnapshot(collection(db, 'thirdParties'), (snapshot) => {
-      setThirdParties(snapshot.docs.map((doc, index) => ({ id: index, stringId: doc.id, ...doc.data() } as ThirdParty)));
-    });
-
-    const unsubSettings = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data() as Settings;
-        setSettings(data);
-        setLogo(data.logoUrl);
-      }
-    });
-
-    return () => {
-      unsubUsers(); unsubAppointments(); unsubPendencies(); unsubFinancials();
-      unsubAccounts(); unsubThirdParties(); unsubSettings();
-    };
-  }, [user]);
-
-  // App Environment / PWA
   useEffect(() => {
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      setInstallPromptEvent(e);
-    });
-    
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data?.type === 'UPDATE_AVAILABLE') {
-          setIsUpdateAvailable(true);
+    const registerSW = async () => {
+        if ('serviceWorker' in navigator && window.location.protocol !== 'blob:') {
+            try {
+                // Verificação de segurança: aguarda o load da página
+                window.addEventListener('load', async () => {
+                    try {
+                        const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' });
+                        setSwRegistration(registration);
+                        console.log("PWA: Service Worker v1.22.0 registrado.");
+                    } catch (e: any) {
+                        console.warn("PWA: Registro inicial falhou, tentando fallback...", e.message);
+                    }
+                });
+            } catch (err) {
+                console.error("PWA Critical Error:", err);
+            }
         }
-      });
-    }
-
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
     };
+    registerSW();
+
+    const handlePrompt = (e: Event) => { e.preventDefault(); setInstallPromptEvent(e); };
+    window.addEventListener('beforeinstallprompt', handlePrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handlePrompt);
   }, []);
 
-  const triggerInstallPrompt = () => {
-    if (installPromptEvent) {
-      installPromptEvent.prompt();
-      installPromptEvent.userChoice.then(() => setInstallPromptEvent(null));
-    }
-  };
-
-  const updateApp = () => window.location.reload();
-  
   const repairPWA = async () => {
      try {
        if ('serviceWorker' in navigator) {
          const registrations = await navigator.serviceWorker.getRegistrations();
-         for(let registration of registrations) { await registration.unregister(); }
+         for(let r of registrations) { await r.unregister(); }
        }
        if ('caches' in window) {
          const keys = await caches.keys();
-         for(let key of keys) { await caches.delete(key); }
+         for(let k of keys) { await caches.delete(k); }
        }
        localStorage.clear();
-       return { success: true, message: "PWA reparado. O sistema será reiniciado." };
+       setTimeout(() => window.location.reload(), 500);
+       return { success: true, message: "PWA resetado. Reiniciando..." };
      } catch (e: any) {
-       return { success: false, message: "Erro ao reparar: " + e.message };
+       return { success: false, message: "Erro: " + e.message };
      }
   };
 
-  // Auth Functions
-  const login = async (email: string, pass: string) => {
-    try {
-      await signInWithEmailAndPassword(auth, email, pass);
-      return { success: true, message: 'Sucesso' };
-    } catch (e: any) {
-      return { success: false, message: 'Erro ao entrar: ' + e.message };
-    }
-  };
-
-  const logout = () => signOut(auth);
-
-  const sendPasswordReset = async (email: string) => {
-    try {
-      await sendPasswordResetEmail(auth, email);
-      return { success: true, message: 'E-mail de recuperação enviado.' };
-    } catch (e: any) {
-      return { success: false, message: e.message };
-    }
-  };
-
-  const updatePassword = async (oldPass: string, newPass: string) => {
-    if (!auth.currentUser || !auth.currentUser.email) return { success: false, message: 'Usuário não autenticado.' };
-    try {
-        const credential = EmailAuthProvider.credential(auth.currentUser.email, oldPass);
-        await reauthenticateWithCredential(auth.currentUser, credential);
-        await fbUpdatePassword(auth.currentUser, newPass);
-        if (user) {
-            await updateDoc(doc(db, 'users', user.id), { forcePasswordChange: false });
-        }
-        return { success: true, message: 'Senha atualizada com sucesso!' };
-    } catch (e: any) {
-        return { success: false, message: e.message };
-    }
-  };
-
-  // CRUD Functions
-  const addAppointment = async (app: Omit<Appointment, 'id' | 'stringId'>) => {
-    await addDoc(collection(db, 'appointments'), app);
-    triggerNotification('Vistoria agendada com sucesso!');
-  };
-  const updateAppointment = async (app: Appointment) => {
-    const { id, stringId, ...data } = app;
-    await updateDoc(doc(db, 'appointments', stringId!), data);
-    triggerNotification('Vistoria atualizada!');
-  };
-  const deleteAppointment = async (stringId: string) => {
-    await deleteDoc(doc(db, 'appointments', stringId));
-    triggerNotification('Agendamento removido.');
-  };
-  const batchAddAppointments = async (apps: Omit<Appointment, 'id' | 'stringId'>[]) => {
-    const batch = writeBatch(db);
-    apps.forEach(app => {
-      const docRef = doc(collection(db, 'appointments'));
-      batch.set(docRef, app);
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+      if (fbUser) {
+        onSnapshot(doc(db, 'users', fbUser.uid), (docSnap) => {
+          if (docSnap.exists()) setUser({ id: docSnap.id, ...docSnap.data() } as User);
+          setLoading(false);
+        });
+        onSnapshot(doc(db, 'settings', 'default'), (docSnap) => {
+          if (docSnap.exists()) {
+              const data = docSnap.data() as Settings;
+              setSettings({ ...initialSettings, ...data });
+              setLogo(data.logoUrl || null);
+          }
+        });
+      } else {
+        setUser(null); setLoading(false);
+      }
     });
-    await batch.commit();
-    triggerNotification(`${apps.length} agendamentos criados.`);
-  };
-  const batchDeleteAppointments = async (stringIds: string[]) => {
-    const batch = writeBatch(db);
-    stringIds.forEach(id => batch.delete(doc(db, 'appointments', id)));
-    await batch.commit();
-    triggerNotification(`${stringIds.length} agendamentos removidos.`);
-  };
-  const addMessageToAppointment = async (appointmentStringId: string, messageText: string) => {
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
     if (!user) return;
-    const message = { authorId: user.id, authorName: user.name, text: messageText, timestamp: Date.now() };
-    await updateDoc(doc(db, 'appointments', appointmentStringId), { messages: arrayUnion(message) });
-  };
+    const unsubscribers = [
+        onSnapshot(collection(db, 'users'), (s) => setUsers(s.docs.map(d => ({id: d.id, ...d.data()} as User)))),
+        onSnapshot(collection(db, 'appointments'), (s) => setAppointments(s.docs.map((d, i) => ({id: i, stringId: d.id, ...d.data()} as Appointment)))),
+        onSnapshot(collection(db, 'pendencies'), (s) => setPendencies(s.docs.map((d, i) => ({id: i, stringId: d.id, ...d.data()} as Pendency)))),
+        onSnapshot(collection(db, 'financials'), (s) => setFinancials(s.docs.map((d, i) => ({id: i, stringId: d.id, ...d.data()} as FinancialTransaction)))),
+        onSnapshot(collection(db, 'accounts'), (s) => setAccounts(s.docs.map((d, i) => ({id: i, stringId: d.id, ...d.data()} as FinancialAccount)))),
+        onSnapshot(collection(db, 'thirdParties'), (s) => setThirdParties(s.docs.map((d, i) => ({id: i, stringId: d.id, ...d.data()} as ThirdParty))))
+    ];
+    return () => unsubscribers.forEach(u => u());
+  }, [user]);
 
-  const addPendency = async (p: Omit<Pendency, 'id' | 'stringId'>) => {
-    await addDoc(collection(db, 'pendencies'), p);
-    triggerNotification('Pendência registrada.');
-  };
-  const updatePendency = async (p: Pendency) => {
-    const { id, stringId, ...data } = p;
-    await updateDoc(doc(db, 'pendencies', stringId!), data);
-    triggerNotification('Pendência atualizada.');
-  };
-  const deletePendency = async (stringId: string) => {
-    await deleteDoc(doc(db, 'pendencies', stringId));
-    triggerNotification('Pendência removida.');
-  };
-
-  const addFinancial = async (t: Omit<FinancialTransaction, 'id' | 'stringId'>) => {
-    await addDoc(collection(db, 'financials'), t);
-    triggerNotification('Transação financeira registrada.');
-  };
-  const updateFinancial = async (t: FinancialTransaction) => {
-    const { id, stringId, ...data } = t;
-    await updateDoc(doc(db, 'financials', stringId!), data);
-    triggerNotification('Transação atualizada.');
-  };
-  const deleteFinancial = async (stringId: string) => {
-    await deleteDoc(doc(db, 'financials', stringId));
-    triggerNotification('Transação removida.');
-  };
-
-  const addAccount = async (acc: Omit<FinancialAccount, 'id' | 'stringId'>) => {
-    await addDoc(collection(db, 'accounts'), acc);
-    triggerNotification('Conta cadastrada.');
-  };
-  const updateAccount = async (acc: FinancialAccount) => {
-    const { id, stringId, ...data } = acc;
-    await updateDoc(doc(db, 'accounts', stringId!), data);
-    triggerNotification('Conta atualizada.');
-  };
-  const deleteAccount = async (stringId: string) => {
-    await deleteDoc(doc(db, 'accounts', stringId));
-    triggerNotification('Conta removida.');
-  };
-
-  const addThirdParty = async (tp: Omit<ThirdParty, 'id' | 'stringId'>) => {
-    await addDoc(collection(db, 'thirdParties'), tp);
-    triggerNotification('Cliente/Fornecedor registrado.');
-  };
-  const updateThirdParty = async (tp: ThirdParty) => {
-    const { id, stringId, ...data } = tp;
-    await updateDoc(doc(db, 'thirdParties', stringId!), data);
-    triggerNotification('Registro atualizado.');
-  };
-  const deleteThirdParty = async (stringId: string) => {
-    await deleteDoc(doc(db, 'thirdParties', stringId));
-    triggerNotification('Registro removido.');
-  };
-
-  const addUser = async (userData: Omit<User, 'id'>) => {
-    try {
-      const credential = await createUserWithEmailAndPassword(auth, userData.email, '123mudar');
-      await setDoc(doc(db, 'users', credential.user.uid), { ...userData, forcePasswordChange: true });
-      return { success: true, message: 'Usuário criado com sucesso. Você foi desconectado para segurança.' };
-    } catch (e: any) {
-      return { success: false, message: e.message };
-    }
-  };
-  const updateUser = async (u: User) => {
-    const { id, ...data } = u;
-    await updateDoc(doc(db, 'users', id), data);
-    triggerNotification('Perfil de usuário atualizado.');
-  };
-  const updateUserPhoto = async (userId: string, photoURL: string) => {
-    await updateDoc(doc(db, 'users', userId), { photoURL });
-  };
-  const deleteUser = async (userId: string) => {
-    await deleteDoc(doc(db, 'users', userId));
-    triggerNotification('Usuário removido do sistema.');
-  };
-
-  const updateLogo = async (newLogo: string | null) => {
-    await updateDoc(doc(db, 'settings', 'general'), { logoUrl: newLogo });
-    setLogo(newLogo);
-  };
-  const updateSettings = async (newSettings: Partial<Settings>) => {
-    await setDoc(doc(db, 'settings', 'general'), newSettings, { merge: true });
-    triggerNotification('Configurações salvas.');
-  };
+  const triggerNotification = (m = 'Sucesso') => setNotification(m);
+  const clearNotification = () => setNotification(null);
 
   const value: AppContextType = {
-    theme, toggleTheme, setTheme, themePalette, setThemePalette, textPalette, setTextPalette,
-    user, users, appointments, pendencies, financials, accounts, thirdParties, settings, logo, updateLogo, updateSettings,
-    loading, isOnline, notification, clearNotification, triggerNotification, pageNotifications, clearPageNotification,
-    installPromptEvent, triggerInstallPrompt, isUpdateAvailable, updateApp, isStandalone, repairPWA,
-    login, logout, sendPasswordReset, resetPassword: sendPasswordReset, updatePassword,
+    theme, toggleTheme: () => setThemeState(t => t === 'light' ? 'dark' : 'light'), setTheme: setThemeState,
+    themePalette, setThemePalette: setThemePaletteState, textPalette, setTextPalette: setTextPaletteState,
+    user, users, appointments, pendencies, financials, accounts, thirdParties, settings, logo,
+    updateLogo: async (l) => { await updateDoc(doc(db, 'settings', 'default'), { logoUrl: l }); },
+    updateSettings: async (s) => { await setDoc(doc(db, 'settings', 'default'), s, { merge: true }); triggerNotification('Configurações salvas.'); },
+    loading, isOnline, notification, clearNotification, triggerNotification, pageNotifications, 
+    clearPageNotification: (p) => setPageNotifications(prev => ({ ...prev, [p]: false })),
+    installPromptEvent, triggerInstallPrompt: () => { if (installPromptEvent) installPromptEvent.prompt(); },
+    isUpdateAvailable, updateApp: () => window.location.reload(), isStandalone, repairPWA,
+    login: async (e, p) => { try { await signInWithEmailAndPassword(auth, e, p); return { success: true, message: '' }; } catch (err) { return { success: false, message: 'Erro no login.' }; } },
+    logout: () => signOut(auth),
+    sendPasswordReset: async (e) => { try { await sendPasswordResetEmail(auth, e); return { success: true, message: 'Email enviado.' }; } catch (err) { return { success: false, message: 'Erro.' }; } },
+    resetPassword: async (e) => { try { await sendPasswordResetEmail(auth, e); return { success: true, message: 'Email enviado.' }; } catch (err) { return { success: false, message: 'Erro.' }; } },
+    updatePassword: async (o, n) => { try { await fbUpdatePassword(auth.currentUser!, n); return { success: true, message: 'Senha atualizada.' }; } catch (e: any) { return { success: false, message: e.message }; } },
     activePage, setActivePage, activeFinancialPage, setActiveFinancialPage,
-    addAppointment, updateAppointment, deleteAppointment, batchAddAppointments, batchDeleteAppointments, addMessageToAppointment,
-    addPendency, updatePendency, deletePendency,
-    addFinancial, updateFinancial, deleteFinancial,
-    addAccount, updateAccount, deleteAccount,
-    addThirdParty, updateThirdParty, deleteThirdParty,
-    addUser, updateUser, updateUserPhoto, deleteUser
+    addAppointment: async (a) => { await addDoc(collection(db, 'appointments'), a); triggerNotification('Agendado!'); },
+    updateAppointment: async (a) => { const {id, stringId, ...data} = a; await updateDoc(doc(db, 'appointments', stringId!), data); },
+    deleteAppointment: async (sid) => { await deleteDoc(doc(db, 'appointments', sid)); },
+    batchAddAppointments: async (as) => { const b = writeBatch(db); as.forEach(a => b.set(doc(collection(db, 'appointments')), a)); await b.commit(); },
+    batchDeleteAppointments: async (ids) => { const b = writeBatch(db); ids.forEach(id => b.delete(doc(db, 'appointments', id))); await b.commit(); },
+    addMessageToAppointment: async (sid, t) => { await updateDoc(doc(db, 'appointments', sid), { messages: arrayUnion({ authorId: user?.id, authorName: user?.name, text: t, timestamp: Date.now() }) }); },
+    addPendency: async (p) => { await addDoc(collection(db, 'pendencies'), p); },
+    updatePendency: async (p) => { const {id, stringId, ...data} = p; await updateDoc(doc(db, 'pendencies', stringId!), data); },
+    deletePendency: async (sid) => { await deleteDoc(doc(db, 'pendencies', sid)); },
+    addFinancial: async (f) => { await addDoc(collection(db, 'financials'), f); },
+    updateFinancial: async (f) => { const {id, stringId, ...data} = f; await updateDoc(doc(db, 'financials', stringId!), data); },
+    deleteFinancial: async (sid) => { await deleteDoc(doc(db, 'financials', sid)); },
+    addAccount: async (a) => { await addDoc(collection(db, 'accounts'), a); },
+    updateAccount: async (a) => { const {id, stringId, ...data} = a; await updateDoc(doc(db, 'accounts', stringId!), data); },
+    deleteAccount: async (sid) => { await deleteDoc(doc(db, 'accounts', sid)); },
+    addThirdParty: async (t) => { await addDoc(collection(db, 'thirdParties'), t); },
+    updateThirdParty: async (t) => { const {id, stringId, ...data} = t; await updateDoc(doc(db, 'thirdParties', stringId!), data); },
+    deleteThirdParty: async (sid) => { await deleteDoc(doc(db, 'thirdParties', sid)); },
+    addUser: async (u) => { try { const res = await createUserWithEmailAndPassword(auth, u.email, '123mudar'); await setDoc(doc(db, 'users', res.user.uid), { ...u, forcePasswordChange: true }); return { success: true, message: 'Usuário criado.' }; } catch (e: any) { return { success: false, message: e.message }; } },
+    updateUser: async (u) => { const {id, ...data} = u; await updateDoc(doc(db, 'users', id), data); },
+    updateUserPhoto: async (uid, url) => { await updateDoc(doc(db, 'users', uid), { photoURL: url }); },
+    deleteUser: async (uid) => { await deleteDoc(doc(db, 'users', uid)); }
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

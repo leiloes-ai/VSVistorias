@@ -1,6 +1,6 @@
 // GESTORPRO SERVICE WORKER - V1.22.0
-// Data: 09/01/2026 - ESTABILIDADE DE DEPLOY
-console.log('%c[SW] v1.22.0 - Inicializando...', 'color: #3b82f6; font-weight: bold;');
+// Data: 09/01/2026 - OTIMIZADO PARA FIREBASE
+console.log('%c[SW] v1.22.0 - Ativo e Monitorando...', 'color: #3b82f6; font-weight: bold;');
 
 const VERSION = 'v1.22.0';
 const CACHE_NAME = `gestorpro-cache-${VERSION}`;
@@ -15,7 +15,7 @@ const APP_SHELL_URLS = [
   '/icon-512.png'
 ];
 
-// Importação do Firebase (Uso de CDN estável)
+// Importação do Firebase (CDN oficial v9)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 import { getMessaging, onBackgroundMessage } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-sw.js";
 
@@ -36,33 +36,31 @@ onBackgroundMessage(messaging, (payload) => {
   const notificationOptions = {
     body: payload.notification?.body || 'Nova atualização no sistema.',
     icon: '/icon-192.png',
-    badge: '/icon-192.png',
-    data: payload.data
+    badge: '/icon-192.png'
   };
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
 self.addEventListener('install', (event) => {
-  console.log('[SW] Instalando versão:', VERSION);
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
+        console.log('[SW] Cacheando Shell da Aplicação...');
         return cache.addAll(APP_SHELL_URLS).catch(err => {
-            console.warn('[SW] Falha ao cachear shell:', err);
+            console.error('[SW] Erro ao cachear recursos críticos:', err);
         });
     })
   );
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Ativando versão:', VERSION);
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
           .filter((name) => name.startsWith('gestorpro-cache-') && name !== CACHE_NAME)
           .map((name) => {
-              console.log('[SW] Removendo cache antigo:', name);
+              console.log('[SW] Limpando cache antigo:', name);
               return caches.delete(name);
           })
       );
@@ -75,18 +73,18 @@ self.addEventListener('fetch', (event) => {
   
   const url = new URL(event.request.url);
   
-  // Ignora chamadas externas e APIs do Firebase
+  // Excluir chamadas de API e domínios do Firebase do cache do Service Worker
   if (url.hostname.includes('googleapis.com') || 
       url.hostname.includes('gstatic.com') || 
       url.hostname.includes('firebase') ||
-      url.hostname.includes('vercel-insider.com')) return;
+      url.hostname.includes('vercel')) return;
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) return cachedResponse;
 
       return fetch(event.request).then((networkResponse) => {
-        // Apenas faz cache de requisições de sucesso do próprio domínio
+        // Cachear apenas arquivos estáticos do próprio domínio de sucesso
         if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
           return networkResponse;
         }
@@ -98,7 +96,7 @@ self.addEventListener('fetch', (event) => {
 
         return networkResponse;
       }).catch(() => {
-        // Fallback offline básico
+        // Fallback para modo offline em navegação
         if (event.request.mode === 'navigate') {
           return caches.match('/');
         }
