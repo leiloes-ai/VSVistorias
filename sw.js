@@ -1,11 +1,11 @@
-// GESTORPRO SERVICE WORKER - V1.23.0
-// Data: 09/01/2026 - CORREÇÃO DE DISTRIBUIÇÃO
-console.log('%c[SW] v1.23.0 - Iniciando ciclo de vida operacional...', 'color: #2563eb; font-weight: bold;');
-
-const VERSION = 'v1.23.0';
+// GESTORPRO SERVICE WORKER - V1.24.0
+// Data: 09/01/2026 - ESTABILIZAÇÃO PWA
+const VERSION = 'v1.24.0';
 const CACHE_NAME = `gestorpro-cache-${VERSION}`;
 
-const APP_SHELL_URLS = [
+console.log(`%c[SW] ${VERSION} - Operacional`, 'color: #10b981; font-weight: bold;');
+
+const APP_SHELL = [
   '/',
   '/index.html',
   '/index.css',
@@ -31,58 +31,51 @@ const firebaseApp = initializeApp(firebaseConfig);
 const messaging = getMessaging(firebaseApp);
 
 onBackgroundMessage(messaging, (payload) => {
-  const notificationTitle = payload.notification?.title || 'GestorPRO';
-  const notificationOptions = {
-    body: payload.notification?.body || 'Nova atualização no sistema.',
+  self.registration.showNotification(payload.notification?.title || 'GestorPRO', {
+    body: payload.notification?.body || 'Nova notificação recebida.',
     icon: '/icon-192.png',
     badge: '/icon-192.png'
-  };
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  });
 });
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-        console.log('[SW] Cacheando Shell v1.23.0...');
-        return cache.addAll(APP_SHELL_URLS).catch(err => console.warn('[SW] Shell parcial:', err));
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((name) => name.startsWith('gestorpro-cache-') && name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
-      );
-    }).then(() => self.clients.claim())
+    caches.keys().then((keys) => Promise.all(
+      keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
+    )).then(() => self.clients.claim())
   );
+});
+
+// Listener para mensagens do App (Heartbeat)
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'PING') {
+        event.ports[0].postMessage({ type: 'PONG', version: VERSION });
+    }
 });
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
   
-  if (url.hostname.includes('googleapis.com') || 
-      url.hostname.includes('gstatic.com') || 
-      url.hostname.includes('firebase') ||
-      url.hostname.includes('vercel')) return;
+  if (url.hostname.includes('google') || url.hostname.includes('firebase') || url.hostname.includes('vercel')) return;
 
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
-      return fetch(event.request).then((networkResponse) => {
-        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-          return networkResponse;
-        }
-        const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
-        return networkResponse;
+    caches.match(event.request).then((res) => {
+      return res || fetch(event.request).then((networkRes) => {
+        if (!networkRes || networkRes.status !== 200 || networkRes.type !== 'basic') return networkRes;
+        const cacheCopy = networkRes.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cacheCopy));
+        return networkRes;
       }).catch(() => {
         if (event.request.mode === 'navigate') return caches.match('/');
+        return null;
       });
     })
   );

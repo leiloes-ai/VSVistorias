@@ -10,7 +10,7 @@ export interface AppContextType {
   themePalette: ThemePalette; setThemePalette: (palette: ThemePalette) => void;
   textPalette: TextPalette; setTextPalette: (palette: TextPalette) => void;
   user: User | null; users: User[]; appointments: Appointment[]; pendencies: Pendency[];
-  financials: FinancialTransaction[]; accounts: FinancialAccount[]; thirdParties: ThirdParty[];
+  financials: FinancialTransaction[]; financialsLoaded: boolean; accounts: FinancialAccount[]; thirdParties: ThirdParty[];
   settings: Settings; logo: string | null; updateLogo: (logo: string | null) => Promise<void>;
   updateSettings: (settings: Partial<Settings>) => Promise<void>;
   loading: boolean; isOnline: boolean; notification: string | null; clearNotification: () => void;
@@ -65,6 +65,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [pendencies, setPendencies] = useState<Pendency[]>([]);
   const [financials, setFinancials] = useState<FinancialTransaction[]>([]);
+  const [financialsLoaded, setFinancialsLoaded] = useState(false);
   const [accounts, setAccounts] = useState<FinancialAccount[]>([]);
   const [thirdParties, setThirdParties] = useState<ThirdParty[]>([]);
   const [settings, setSettings] = useState<Settings>(initialSettings);
@@ -77,7 +78,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [activeFinancialPage, setActiveFinancialPage] = useState<FinancialPage>('Dashboard');
   const [installPromptEvent, setInstallPromptEvent] = useState<any>(null);
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
-  const [swRegistration, setSwRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [isStandalone, setIsStandalone] = useState(window.matchMedia('(display-mode: standalone)').matches);
 
   useEffect(() => {
@@ -91,53 +91,49 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [themePalette]);
 
   useEffect(() => {
-    const checkAndRegisterSW = async () => {
-        if ('serviceWorker' in navigator && window.location.protocol !== 'blob:') {
-            try {
-                // TESTE DE ACESSIBILIDADE ANTES DO REGISTRO
-                const response = await fetch('/sw.js', { method: 'HEAD', cache: 'no-store' }).catch(() => null);
-                
-                if (response && response.ok && response.headers.get('content-type')?.includes('javascript')) {
-                    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' });
-                    setSwRegistration(registration);
-                    console.info("PWA: Service Worker v1.23.0 registrado com sucesso.");
+    const registerPWA = async () => {
+        if (!('serviceWorker' in navigator)) return;
+        if (window.location.protocol === 'blob:') return;
 
-                    registration.onupdatefound = () => {
-                        const installingWorker = registration.installing;
-                        if (installingWorker) {
-                            installingWorker.onstatechange = () => {
-                                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    setIsUpdateAvailable(true);
-                                }
-                            };
-                        }
-                    };
-                } else {
-                    const status = response ? response.status : 'Falha de Conexão';
-                    const mime = response ? response.headers.get('content-type') : 'N/A';
-                    console.error(`PWA: Arquivo sw.js inacessível. Status: ${status}, MIME: ${mime}`);
-                }
-            } catch (err: any) {
-                console.error("PWA: Erro crítico no registro:", err.message);
+        try {
+            // VERIFICAÇÃO FÍSICA PROATIVA (BYPASS REDIRECTS)
+            const checkFile = await fetch('/sw.js', { method: 'HEAD', cache: 'no-store' }).catch(() => null);
+            
+            if (checkFile && checkFile.ok) {
+                const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+                console.info("PWA: Service Worker v1.24.0 registrado.");
+
+                registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    if (newWorker) {
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                setIsUpdateAvailable(true);
+                            }
+                        });
+                    }
+                });
+            } else {
+                console.error(`PWA: Arquivo /sw.js não localizado no servidor (Erro 404).`);
+                // Auto-reparo opcional: se o erro persistir, limpa o registro antigo que pode estar "preso"
+                const regs = await navigator.serviceWorker.getRegistrations();
+                for (let r of regs) await r.unregister();
             }
+        } catch (e: any) {
+            console.warn("PWA Critical Failure:", e.message);
         }
     };
 
-    // Aguarda o carregamento completo para não competir com recursos iniciais
-    if (document.readyState === 'complete') {
-        checkAndRegisterSW();
-    } else {
-        window.addEventListener('load', checkAndRegisterSW);
-    }
+    if (document.readyState === 'complete') registerPWA();
+    else window.addEventListener('load', registerPWA);
 
-    const handlePrompt = (e: Event) => { e.preventDefault(); setInstallPromptEvent(e); };
+    const handlePrompt = (e: any) => { e.preventDefault(); setInstallPromptEvent(e); };
     window.addEventListener('beforeinstallprompt', handlePrompt);
     return () => window.removeEventListener('beforeinstallprompt', handlePrompt);
   }, []);
 
   const repairPWA = async () => {
      try {
-       console.warn("PWA: Iniciando reparo profundo...");
        if ('serviceWorker' in navigator) {
          const registrations = await navigator.serviceWorker.getRegistrations();
          for(let r of registrations) { await r.unregister(); }
@@ -147,10 +143,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
          for(let k of keys) { await caches.delete(k); }
        }
        localStorage.clear();
-       setTimeout(() => window.location.reload(), 500);
-       return { success: true, message: "PWA resetado. O sistema será reiniciado para nova sincronização." };
+       setTimeout(() => window.location.reload(), 300);
+       return { success: true, message: "PWA limpo. Reiniciando sistema..." };
      } catch (e: any) {
-       return { success: false, message: "Erro no reparo: " + e.message };
+       return { success: false, message: "Falha: " + e.message };
      }
   };
 
@@ -181,7 +177,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         onSnapshot(collection(db, 'users'), (s) => setUsers(s.docs.map(d => ({id: d.id, ...d.data()} as User)))),
         onSnapshot(collection(db, 'appointments'), (s) => setAppointments(s.docs.map((d, i) => ({id: i, stringId: d.id, ...d.data()} as Appointment)))),
         onSnapshot(collection(db, 'pendencies'), (s) => setPendencies(s.docs.map((d, i) => ({id: i, stringId: d.id, ...d.data()} as Pendency)))),
-        onSnapshot(collection(db, 'financials'), (s) => setFinancials(s.docs.map((d, i) => ({id: i, stringId: d.id, ...d.data()} as FinancialTransaction)))),
+        onSnapshot(collection(db, 'financials'), (s) => {
+            setFinancials(s.docs.map((d, i) => ({id: i, stringId: d.id, ...d.data()} as FinancialTransaction)));
+            setFinancialsLoaded(true);
+        }),
         onSnapshot(collection(db, 'accounts'), (s) => setAccounts(s.docs.map((d, i) => ({id: i, stringId: d.id, ...d.data()} as FinancialAccount)))),
         onSnapshot(collection(db, 'thirdParties'), (s) => setThirdParties(s.docs.map((d, i) => ({id: i, stringId: d.id, ...d.data()} as ThirdParty))))
     ];
@@ -194,7 +193,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const value: AppContextType = {
     theme, toggleTheme: () => setThemeState(t => t === 'light' ? 'dark' : 'light'), setTheme: setThemeState,
     themePalette, setThemePalette: setThemePaletteState, textPalette, setTextPalette: setTextPaletteState,
-    user, users, appointments, pendencies, financials, accounts, thirdParties, settings, logo,
+    user, users, appointments, pendencies, financials, financialsLoaded, accounts, thirdParties, settings, logo,
     updateLogo: async (l) => { await updateDoc(doc(db, 'settings', 'default'), { logoUrl: l }); },
     updateSettings: async (s) => { await setDoc(doc(db, 'settings', 'default'), s, { merge: true }); triggerNotification('Configurações salvas.'); },
     loading, isOnline, notification, clearNotification, triggerNotification, pageNotifications, 
