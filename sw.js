@@ -1,7 +1,7 @@
-// GESTORPRO SERVICE WORKER - V1.18.5
-console.log('[SW] Service Worker v1.18.5 - Inicializando...');
+// GESTORPRO SERVICE WORKER - V1.18.6
+console.log('[SW] Service Worker v1.18.6 - Inicializando...');
 
-const VERSION = 'v1.18.5';
+const VERSION = 'v1.18.6';
 const CACHE_NAME = `gestorpro-cache-${VERSION}`;
 
 const APP_SHELL_URLS = [

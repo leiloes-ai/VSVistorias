@@ -108,12 +108,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const isSandbox = window.location.protocol === 'blob:';
 
     if (!isSandbox && isSecure && 'serviceWorker' in navigator) {
-        // Cache-busting dinâmico no registro para forçar bypass de 404s cacheados pelo navegador
-        const swUrl = `/sw.js?v=1.18.5&t=${new Date().getTime()}`;
-        navigator.serviceWorker.register(swUrl, { scope: '/', type: 'module' })
+        // Registro sem query strings para evitar erros de roteamento no Vercel
+        navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' })
             .then(registration => {
                 setSwRegistration(registration);
-                console.info("PWA: Service Worker registrado.");
+                console.info("PWA: Service Worker registrado com sucesso.");
                 registration.onupdatefound = () => {
                     const worker = registration.installing;
                     if (worker) worker.onstatechange = () => {
@@ -121,7 +120,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     };
                 };
             }).catch(err => {
-                console.error("PWA: Erro no registro do SW:", err.message);
+                console.error("PWA: Falha no registro do Service Worker:", err.message);
             });
     }
 
@@ -131,13 +130,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   const repairPWA = async () => {
-      console.info("Reparo de PWA: Limpando tudo...");
+      console.info("Reparo de PWA: Iniciando...");
       try {
           if ('serviceWorker' in navigator) {
               const registrations = await navigator.serviceWorker.getRegistrations();
               for (const registration of registrations) {
                   await registration.unregister();
               }
+              // No reparo usamos timestamp para garantir bypass total
               const swUrl = `/sw.js?repair=${Date.now()}`;
               const newRegistration = await navigator.serviceWorker.register(swUrl, { scope: '/', type: 'module' });
               setSwRegistration(newRegistration);
@@ -146,7 +146,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               const keys = await caches.keys();
               for (const key of keys) { await caches.delete(key); }
           }
-          return { success: true, message: "PWA reparado! Cache limpo e registro reiniciado. Aguarde 3 segundos e recarregue a página (F5)." };
+          return { success: true, message: "PWA reparado! Cache limpo e registro reiniciado. Reinicie o navegador se necessário." };
       } catch (err: any) {
           return { success: false, message: `Erro no reparo: ${err.message}` };
       }
