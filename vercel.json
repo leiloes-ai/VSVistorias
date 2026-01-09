@@ -1,5 +1,5 @@
 {
-  "cleanUrls": true,
+  "cleanUrls": false,
   "headers": [
     {
       "source": "/sw.js",
@@ -42,11 +42,11 @@
       "destination": "/manifest.json"
     },
     {
-      "source": "/icon-(.*).png",
-      "destination": "/icon-$1.png"
+      "source": "/icon-(.*)",
+      "destination": "/icon-$1"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!.*\\.(?:js|css|json|png|jpg|svg|ico|webp|txt)).*)",
       "destination": "/index.html"
     }
   ]
