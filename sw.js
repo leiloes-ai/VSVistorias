@@ -1,7 +1,8 @@
-// GESTORPRO SERVICE WORKER - V1.18.6
-console.log('[SW] Service Worker v1.18.6 - Inicializando...');
+// GESTORPRO SERVICE WORKER - V1.18.7
+// Data da última modificação: 09/01/2026 - Correção 404 Vercel
+console.log('[SW] v1.18.7 ativo.');
 
-const VERSION = 'v1.18.6';
+const VERSION = 'v1.18.7';
 const CACHE_NAME = `gestorpro-cache-${VERSION}`;
 
 const APP_SHELL_URLS = [
@@ -52,7 +53,6 @@ onBackgroundMessage(messaging, (payload) => {
 });
 
 self.addEventListener('install', (event) => {
-  logToApp('info', `Instalando versão ${VERSION}...`);
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL_URLS))
@@ -60,7 +60,6 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  logToApp('info', `Ativando versão ${VERSION}...`);
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(

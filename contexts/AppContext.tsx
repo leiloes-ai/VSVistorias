@@ -104,24 +104,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
     checkStandalone();
     
-    const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
-    const isSandbox = window.location.protocol === 'blob:';
+    if ('serviceWorker' in navigator) {
+        const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
+        const isNotBlob = window.location.protocol !== 'blob:';
 
-    if (!isSandbox && isSecure && 'serviceWorker' in navigator) {
-        // Registro sem query strings para evitar erros de roteamento no Vercel
-        navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' })
-            .then(registration => {
-                setSwRegistration(registration);
-                console.info("PWA: Service Worker registrado com sucesso.");
-                registration.onupdatefound = () => {
-                    const worker = registration.installing;
-                    if (worker) worker.onstatechange = () => {
-                        if (worker.state === 'installed' && navigator.serviceWorker.controller) setIsUpdateAvailable(true);
+        if (isSecure && isNotBlob) {
+            // Registro limpo sem extensões de query
+            navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' })
+                .then(registration => {
+                    setSwRegistration(registration);
+                    console.info("PWA: Registro bem sucedido.");
+                    registration.onupdatefound = () => {
+                        const worker = registration.installing;
+                        if (worker) worker.onstatechange = () => {
+                            if (worker.state === 'installed' && navigator.serviceWorker.controller) setIsUpdateAvailable(true);
+                        };
                     };
-                };
-            }).catch(err => {
-                console.error("PWA: Falha no registro do Service Worker:", err.message);
-            });
+                }).catch(err => {
+                    console.warn("PWA: Erro inicial no registro. Tentando fallback...", err.message);
+                });
+        }
     }
 
     const handlePrompt = (e: Event) => { e.preventDefault(); setInstallPromptEvent(e); };
@@ -130,23 +132,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   const repairPWA = async () => {
-      console.info("Reparo de PWA: Iniciando...");
+      console.info("Reparo PWA solicitado...");
       try {
           if ('serviceWorker' in navigator) {
               const registrations = await navigator.serviceWorker.getRegistrations();
-              for (const registration of registrations) {
-                  await registration.unregister();
-              }
-              // No reparo usamos timestamp para garantir bypass total
-              const swUrl = `/sw.js?repair=${Date.now()}`;
-              const newRegistration = await navigator.serviceWorker.register(swUrl, { scope: '/', type: 'module' });
-              setSwRegistration(newRegistration);
+              for (const registration of registrations) { await registration.unregister(); }
+              const newReg = await navigator.serviceWorker.register('/sw.js?r=' + Date.now(), { scope: '/', type: 'module' });
+              setSwRegistration(newReg);
           }
           if ('caches' in window) {
               const keys = await caches.keys();
               for (const key of keys) { await caches.delete(key); }
           }
-          return { success: true, message: "PWA reparado! Cache limpo e registro reiniciado. Reinicie o navegador se necessário." };
+          return { success: true, message: "Limpeza concluída! Aguarde 2 segundos e atualize a página manualmente." };
       } catch (err: any) {
           return { success: false, message: `Erro no reparo: ${err.message}` };
       }

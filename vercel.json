@@ -1,5 +1,5 @@
 {
-  "cleanUrls": true,
+  "cleanUrls": false,
   "trailingSlash": false,
   "headers": [
     {
@@ -28,16 +28,7 @@
         },
         {
           "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
-    },
-    {
-      "source": "/(.*).(jpg|jpeg|png|gif|svg|ico|webp|js|css|json)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
+          "value": "no-cache, must-revalidate"
         }
       ]
     }
@@ -52,7 +43,11 @@
       "destination": "/manifest.json"
     },
     {
-      "source": "/(.*)",
+      "source": "/icon-(.*)",
+      "destination": "/icon-$1"
+    },
+    {
+      "source": "/((?!sw\\.js|manifest\\.json|icon-).*)",
       "destination": "/index.html"
     }
   ]
