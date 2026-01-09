@@ -1,8 +1,8 @@
-// GESTORPRO SERVICE WORKER - V1.18.8
-// Data da última modificação: 09/01/2026 - Correção Definitiva 404
-console.log('[SW] v1.18.8 detectado.');
+// GESTORPRO SERVICE WORKER - V1.18.9
+// Data da última modificação: 09/01/2026 - CORREÇÃO DEFINITIVA DE PRIORIDADE VERCEL
+console.log('[SW] v1.18.9 inicializado.');
 
-const VERSION = 'v1.18.8';
+const VERSION = 'v1.18.9';
 const CACHE_NAME = `gestorpro-cache-${VERSION}`;
 
 const APP_SHELL_URLS = [
@@ -53,7 +53,6 @@ onBackgroundMessage(messaging, (payload) => {
 });
 
 self.addEventListener('install', (event) => {
-  logToApp('info', 'Iniciando instalação do shell...');
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL_URLS))
@@ -61,7 +60,6 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  logToApp('info', 'Ativando e limpando caches antigos...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -83,7 +81,6 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Não interceptar requisições para o Firebase ou Google
   if (url.hostname.includes('googleapis.com') || url.hostname.includes('firebaseapp.com') || url.hostname.includes('gstatic.com')) {
     return;
   }
