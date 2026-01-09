@@ -1,3 +1,4 @@
+
 import React, { useContext, useState, useRef, useEffect } from 'react';
 import { AppContext } from '../contexts/AppContext.tsx';
 import { UserIcon, LogoutIcon } from './Icons.tsx';
@@ -11,6 +12,7 @@ interface HeaderProps {
 const roleTranslations: Record<Role, string> = {
   master: 'Master',
   admin: 'Administrador',
+  supervisor: 'Supervisor',
   inspector: 'Vistoriador',
   client: 'Cliente',
 };

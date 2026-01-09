@@ -82,7 +82,8 @@ const Profile: React.FC = () => {
     };
 
 
-    const roleTranslations: Record<Role, string> = { master: 'Master', admin: 'Administrador', inspector: 'Vistoriador', client: 'Cliente' };
+    // FIX: Added missing 'supervisor' property to roleTranslations to satisfy Record<Role, string> type requirement.
+    const roleTranslations: Record<Role, string> = { master: 'Master', admin: 'Administrador', supervisor: 'Supervisor', inspector: 'Vistoriador', client: 'Cliente' };
 
     return (
         <>

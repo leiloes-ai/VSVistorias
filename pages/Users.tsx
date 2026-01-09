@@ -10,6 +10,7 @@ import UserForm from '../components/UserForm.tsx';
 const roleTranslations: Record<Role, string> = {
   master: 'Master',
   admin: 'Administrador',
+  supervisor: 'Supervisor',
   inspector: 'Vistoriador',
   client: 'Cliente',
 };

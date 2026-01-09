@@ -25,8 +25,10 @@ const Appointments: React.FC = () => {
 
   const canCreateOrDelete = user?.permissions.appointments === 'edit';
   const canUpdate = user?.permissions.appointments === 'edit' || user?.permissions.appointments === 'update';
-  const isAdminOrMaster = useMemo(() => user?.roles.includes('master') || user?.roles.includes('admin'), [user]);
-  const isAdminOrMasterOrClient = useMemo(() => user?.roles.includes('master') || user?.roles.includes('admin') || user?.roles.includes('client'), [user]);
+  const canRequestNew = user?.permissions.newRequests === 'edit';
+  
+  const isAdminMasterOrSup = useMemo(() => user?.roles.includes('master') || user?.roles.includes('admin') || user?.roles.includes('supervisor'), [user]);
+  const isPrivilegedUser = useMemo(() => isAdminMasterOrSup || user?.roles.includes('client'), [user, isAdminMasterOrSup]);
 
   const getInspectorName = (inspectorId: string) => {
     const inspector = users.find(u => u.id === inspectorId);
@@ -38,7 +40,7 @@ const Appointments: React.FC = () => {
     
     let baseAppointments: Appointment[];
 
-    if (user.roles.includes('master') || user.roles.includes('admin')) {
+    if (isAdminMasterOrSup) {
         baseAppointments = appointments.filter(app => app.status !== 'Solicitado');
     } else {
         const visibleAppointments = new Map<string, Appointment>();
@@ -67,7 +69,7 @@ const Appointments: React.FC = () => {
     
     let finalAppointments: Appointment[];
 
-    if (isAdminOrMasterOrClient) {
+    if (isPrivilegedUser) {
         if (searchByDate) {
             let dateFilteredAppointments = [...baseAppointments];
             if (dateFilter.start) {
@@ -104,7 +106,7 @@ const Appointments: React.FC = () => {
       return idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
     });
 
-  }, [user, appointments, settings.requesters, searchByDate, dateFilter, isAdminOrMasterOrClient]);
+  }, [user, appointments, settings.requesters, searchByDate, dateFilter, isPrivilegedUser, isAdminMasterOrSup]);
   
   const filteredAppointments = useMemo(() => {
     const query = searchQuery.toLowerCase();
@@ -358,15 +360,19 @@ const Appointments: React.FC = () => {
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 font-medium italic">Painel de controle técnico e operacional das vistorias.</p>
         </div>
         <div className="flex flex-col items-stretch sm:items-end gap-3 w-full sm:w-auto">
-          {isAdminOrMasterOrClient && (
+          {isPrivilegedUser && (
               <div className="flex justify-start sm:justify-end gap-2 overflow-x-auto no-scrollbar pb-1">
                   <button onClick={handleExportExcel} className="flex items-center gap-1.5 px-4 py-2.5 text-xs bg-emerald-600 text-white rounded-2xl shadow-lg hover:bg-emerald-700 transition-all font-black uppercase tracking-tighter"><DownloadIcon /> Excel</button>
                   <button onClick={handleExportPdf} className="flex items-center gap-1.5 px-4 py-2.5 text-xs bg-rose-600 text-white rounded-2xl shadow-lg hover:bg-rose-700 transition-all font-black uppercase tracking-tighter"><DownloadIcon /> PDF</button>
               </div>
           )}
-          {canCreateOrDelete && (
+          {canCreateOrDelete ? (
             <button onClick={() => { setSelectedAppointment(null); setIsModalOpen(true); }} className="flex items-center justify-center gap-2 px-6 py-3.5 bg-primary-600 text-white rounded-2xl shadow-xl hover:bg-primary-700 transition-all font-black text-sm active:scale-95 group">
               <AddIcon /> <span className="group-hover:translate-x-1 transition-transform">NOVO AGENDAMENTO</span>
+            </button>
+          ) : canRequestNew && (
+            <button onClick={() => { setSelectedAppointment(null); setIsModalOpen(true); }} className="flex items-center justify-center gap-2 px-6 py-3.5 bg-primary-600 text-white rounded-2xl shadow-xl hover:bg-primary-700 transition-all font-black text-sm active:scale-95 group">
+              <AddIcon /> <span className="group-hover:translate-x-1 transition-transform">SOLICITAR VISTORIA</span>
             </button>
           )}
         </div>
@@ -382,10 +388,10 @@ const Appointments: React.FC = () => {
             <div className="flex flex-col sm:flex-row gap-4">
                 <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full sm:w-1/3 px-5 py-3.5 text-sm font-black border-0 bg-gray-50 dark:bg-gray-900/50 rounded-2xl focus:ring-2 focus:ring-primary-500 transition-all text-gray-700 dark:text-gray-200">
                     <option value="Todos">TODOS OS STATUS</option>
-                    {settings.statuses.filter(s => s.name !== 'Solicitado' || !isAdminOrMaster).map(s => <option key={s.id} value={s.name}>{s.name.toUpperCase()}</option>)}
+                    {settings.statuses.filter(s => s.name !== 'Solicitado' || isAdminMasterOrSup).map(s => <option key={s.id} value={s.name}>{s.name.toUpperCase()}</option>)}
                 </select>
                 
-                {isAdminOrMasterOrClient && (
+                {isPrivilegedUser && (
                     <div className="flex flex-grow items-center gap-4 px-5 py-3.5 bg-gray-50 dark:bg-gray-900/50 rounded-2xl overflow-hidden border-0">
                         <input type="checkbox" id="searchByDate" checked={searchByDate} onChange={(e) => setSearchByDate(e.target.checked)} className="h-6 w-6 rounded-lg border-gray-300 text-primary-600 focus:ring-primary-500 flex-shrink-0 transition-all cursor-pointer"/>
                         <label htmlFor="searchByDate" className="text-[10px] font-black text-gray-500 dark:text-gray-400 whitespace-nowrap cursor-pointer uppercase tracking-widest">Filtrar Período</label>
@@ -408,7 +414,7 @@ const Appointments: React.FC = () => {
         )}
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={selectedAppointment ? 'Editar Vistoria' : 'Nova Vistoria'}>
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={selectedAppointment ? 'Editar Vistoria' : (canCreateOrDelete ? 'Nova Vistoria' : 'Solicitar Nova Vistoria')}>
         <AppointmentForm appointment={selectedAppointment} onSave={() => setIsModalOpen(false)} />
       </Modal>
 

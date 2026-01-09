@@ -18,6 +18,11 @@ service cloud.firestore {
     function isMasterOrAdmin() {
       return getUserData().roles.hasAny(['master', 'admin']);
     }
+
+    // Helper function to check for privileged operational roles
+    function isPrivilegedOperational() {
+      return getUserData().roles.hasAny(['master', 'admin', 'supervisor']);
+    }
     
     // Helper function to check if the user is a master
     function isMaster() {

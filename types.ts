@@ -1,5 +1,5 @@
 
-export type Role = 'master' | 'admin' | 'inspector' | 'client';
+export type Role = 'master' | 'admin' | 'supervisor' | 'inspector' | 'client';
 
 /**
  * Defines the access level for a user to a specific module.

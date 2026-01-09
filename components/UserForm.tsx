@@ -11,6 +11,7 @@ interface UserFormProps {
 const roleTranslations: Record<Role, string> = {
   master: 'Master',
   admin: 'Administrador',
+  supervisor: 'Supervisor',
   inspector: 'Vistoriador',
   client: 'Cliente',
 };
@@ -36,6 +37,7 @@ const calculatePermissionsForRoles = (roles: Role[]): User['permissions'] => {
     const rolePermissionsMap: Record<Role, Partial<User['permissions']>> = {
         master: { dashboard: 'edit', appointments: 'edit', pendencies: 'edit', newRequests: 'edit', reports: 'edit', users: 'edit', settings: 'edit', financial: 'edit' },
         admin: { dashboard: 'edit', appointments: 'edit', pendencies: 'edit', newRequests: 'edit', reports: 'edit', users: 'edit', settings: 'edit', financial: 'edit' },
+        supervisor: { dashboard: 'view', appointments: 'edit', pendencies: 'edit', newRequests: 'view', reports: 'view', users: 'hidden', settings: 'view', financial: 'hidden' },
         inspector: { dashboard: 'view', appointments: 'update', pendencies: 'update', newRequests: 'hidden', reports: 'hidden', users: 'hidden', settings: 'update', financial: 'hidden' },
         client: { dashboard: 'view', appointments: 'view', pendencies: 'view', newRequests: 'edit', reports: 'hidden', users: 'hidden', settings: 'update', financial: 'hidden' }
     };
@@ -167,8 +169,8 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave }) => {
   const isRoleFieldDisabled = (isEditingSelf && !loggedInUser?.roles.includes('master')) || isAdminEditingMaster;
 
   const availableRoles: Role[] = loggedInUser?.roles.includes('master') 
-    ? ['master', 'admin', 'inspector', 'client']
-    : ['admin', 'inspector', 'client'];
+    ? ['master', 'admin', 'supervisor', 'inspector', 'client']
+    : ['admin', 'supervisor', 'inspector', 'client'];
   
   const permissions: (keyof User['permissions'])[] = ['dashboard', 'appointments', 'pendencies', 'financial', 'newRequests', 'reports', 'users', 'settings'];
 
