@@ -109,29 +109,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const isNotBlob = window.location.protocol !== 'blob:';
 
         if (isSecure && isNotBlob) {
-            // REGISTRO v1.20.0: Limpeza prévia para garantir que o navegador aceite o sw.js físico
-            navigator.serviceWorker.getRegistrations().then(registrations => {
-                for (let registration of registrations) {
-                    // Se o escopo for diferente ou houver problemas, desregistra versões instáveis
-                    if (registration.scope !== window.location.origin + '/') {
-                        registration.unregister();
+            // VERIFICAÇÃO PREVENTIVA DE ROTA
+            fetch('/sw.js', { method: 'HEAD', cache: 'no-store' })
+                .then(res => {
+                    if (res.ok && res.headers.get('content-type')?.includes('javascript')) {
+                        return navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' });
+                    } else {
+                        throw new Error(`Arquivo sw.js inacessível ou MIME inválido: ${res.status} (${res.headers.get('content-type')})`);
                     }
-                }
-                
-                navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' })
-                    .then(registration => {
-                        setSwRegistration(registration);
-                        console.info("PWA: Service Worker v1.20.0 registrado com sucesso.");
-                        registration.onupdatefound = () => {
-                            const worker = registration.installing;
-                            if (worker) worker.onstatechange = () => {
-                                if (worker.state === 'installed' && navigator.serviceWorker.controller) setIsUpdateAvailable(true);
-                            };
+                })
+                .then(registration => {
+                    setSwRegistration(registration);
+                    console.info("PWA: Service Worker v1.21.0 registrado com sucesso.");
+                    registration.onupdatefound = () => {
+                        const worker = registration.installing;
+                        if (worker) worker.onstatechange = () => {
+                            if (worker.state === 'installed' && navigator.serviceWorker.controller) setIsUpdateAvailable(true);
                         };
-                    }).catch(err => {
-                        console.error("PWA Error:", err.message);
-                    });
-            });
+                    };
+                })
+                .catch(err => {
+                    console.error("PWA Error (Diagnostic Mode):", err.message);
+                });
         }
     }
 
@@ -141,19 +140,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   const repairPWA = async () => {
-      console.info("PWA: Iniciando Reparo Geral...");
+      console.info("PWA: Executando Reparo Nuclear...");
       try {
           if ('serviceWorker' in navigator) {
               const registrations = await navigator.serviceWorker.getRegistrations();
-              for (const registration of registrations) { await registration.unregister(); }
-              const newReg = await navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' });
-              setSwRegistration(newReg);
+              for (let r of registrations) { await r.unregister(); }
           }
           if ('caches' in window) {
               const keys = await caches.keys();
-              for (const key of keys) { await caches.delete(key); }
+              for (let k of keys) { await caches.delete(k); }
           }
-          return { success: true, message: "Limpeza concluída. Por favor, reinicie o aplicativo." };
+          // Reinicia registro limpo após 1 segundo
+          setTimeout(() => window.location.reload(), 1000);
+          return { success: true, message: "PWA Resetado. Reiniciando página..." };
       } catch (err: any) {
           return { success: false, message: `Erro no reparo: ${err.message}` };
       }
